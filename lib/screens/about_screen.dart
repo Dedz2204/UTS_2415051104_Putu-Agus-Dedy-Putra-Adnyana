@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../widgets/responsive_layout.dart';
+
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
 
@@ -13,12 +15,12 @@ class AboutScreen extends StatefulWidget {
 }
 
 class _AboutScreenState extends State<AboutScreen> {
-  static const Color primaryColor = Color(0xFF2864F0);
+  static const String _nameKey = 'expense_task_profile_name';
+  static const String _photoKey = 'expense_task_profile_photo';
 
-  final ImagePicker _picker = ImagePicker();
-  final TextEditingController _nameController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
 
-  String _name = '';
+  String _profileName = 'Pengguna ExpenseTask';
   String? _photoPath;
   bool _isLoading = true;
 
@@ -29,32 +31,35 @@ class _AboutScreenState extends State<AboutScreen> {
   }
 
   Future<void> _loadProfile() async {
-    final prefs = await SharedPreferences.getInstance();
+    try {
+      final preferences = await SharedPreferences.getInstance();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      _name = prefs.getString('profile_name') ?? '';
-      _photoPath = prefs.getString('profile_photo');
-      _isLoading = false;
-    });
+      setState(() {
+        _profileName =
+            preferences.getString(_nameKey) ?? 'Pengguna ExpenseTask';
+        _photoPath = preferences.getString(_photoKey);
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
-  Future<void> _editName() async {
-    _nameController.text = _name;
+  Future<void> _editProfileName() async {
+    final controller = TextEditingController(text: _profileName);
 
     final newName = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Ubah Nama'),
+        title: const Text('Ubah Nama Profil'),
         content: TextField(
-          controller: _nameController,
+          controller: controller,
           autofocus: true,
-          maxLength: 50,
           textCapitalization: TextCapitalization.words,
           decoration: const InputDecoration(
-            labelText: 'Nama pengguna',
-            hintText: 'Masukkan nama kamu',
+            labelText: 'Nama',
             border: OutlineInputBorder(),
           ),
         ),
@@ -65,16 +70,10 @@ class _AboutScreenState extends State<AboutScreen> {
           ),
           FilledButton(
             onPressed: () {
-              final value = _nameController.text.trim();
-
-              if (value.isEmpty) {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(content: Text('Nama tidak boleh kosong.')),
-                );
-                return;
+              final value = controller.text.trim();
+              if (value.isNotEmpty) {
+                Navigator.pop(dialogContext, value);
               }
-
-              Navigator.pop(dialogContext, value);
             },
             child: const Text('Simpan'),
           ),
@@ -82,49 +81,53 @@ class _AboutScreenState extends State<AboutScreen> {
       ),
     );
 
-    if (newName == null || newName.trim().isEmpty) return;
+    controller.dispose();
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('profile_name', newName.trim());
+    if (newName == null) return;
 
-    if (!mounted) return;
-
-    setState(() {
-      _name = newName.trim();
-    });
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Nama berhasil diperbarui.')));
-  }
-
-  Future<void> _changePhoto() async {
     try {
-      final XFile? selected = await _picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 85,
-        maxWidth: 1000,
-      );
-
-      if (selected == null) return;
-
-      final directory = await getApplicationDocumentsDirectory();
-      final extension = selected.path.contains('.')
-          ? selected.path.split('.').last
-          : 'jpg';
-
-      final savedFile = await File(selected.path).copy(
-        '${directory.path}/profile_${DateTime.now().millisecondsSinceEpoch}.$extension',
-      );
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('profile_photo', savedFile.path);
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setString(_nameKey, newName);
 
       if (!mounted) return;
 
-      setState(() {
-        _photoPath = savedFile.path;
-      });
+      setState(() => _profileName = newName);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nama profil berhasil diperbarui.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal menyimpan nama: $error')));
+    }
+  }
+
+  Future<void> _changeProfilePhoto() async {
+    try {
+      final image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1200,
+      );
+
+      if (image == null) return;
+
+      final directory = await getApplicationDocumentsDirectory();
+      final extension = image.path.contains('.')
+          ? image.path.split('.').last
+          : 'jpg';
+      final savedFile = await File(image.path)
+          .copy('${directory.path}/expense_task_profile.$extension');
+
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setString(_photoKey, savedFile.path);
+
+      if (!mounted) return;
+
+      setState(() => _photoPath = savedFile.path);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Foto profil berhasil diperbarui.')),
@@ -137,219 +140,229 @@ class _AboutScreenState extends State<AboutScreen> {
     }
   }
 
-  Future<void> _removePhoto() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('profile_photo');
-
-    if (_photoPath != null) {
-      try {
-        final file = File(_photoPath!);
-        if (await file.exists()) {
-          await file.delete();
-        }
-      } catch (_) {
-        // Profil tetap bisa diperbarui jika file lama gagal dihapus.
-      }
-    }
-
-    if (!mounted) return;
-
-    setState(() {
-      _photoPath = null;
-    });
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    final hasPhoto = _photoPath != null && File(_photoPath!).existsSync();
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Tentang',
+          'Tentang Aplikasi',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        centerTitle: false,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-            decoration: BoxDecoration(
-              color: primaryColor,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Column(
-              children: [
-                Stack(
-                  alignment: Alignment.bottomRight,
-                  children: [
-                    CircleAvatar(
-                      radius: 54,
-                      backgroundColor: Colors.white,
-                      backgroundImage: hasPhoto
-                          ? FileImage(File(_photoPath!))
-                          : null,
-                      child: hasPhoto
-                          ? null
-                          : const Icon(
-                              Icons.person,
-                              size: 62,
-                              color: primaryColor,
-                            ),
-                    ),
-                    Material(
-                      color: Colors.white,
-                      shape: const CircleBorder(),
-                      child: IconButton(
-                        tooltip: 'Ganti foto profil',
-                        onPressed: _changePhoto,
-                        icon: const Icon(
-                          Icons.camera_alt_outlined,
-                          color: primaryColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  _name.isEmpty ? 'Nama belum diisi' : _name,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Pengguna ExpenseTask',
-                  style: TextStyle(color: Colors.white70),
-                ),
-                const SizedBox(height: 18),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: _editName,
-                      icon: const Icon(Icons.edit_outlined),
-                      label: const Text('Ubah Nama'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.white70),
-                      ),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: _changePhoto,
-                      icon: const Icon(Icons.photo_library_outlined),
-                      label: const Text('Ganti Foto'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.white70),
-                      ),
-                    ),
-                  ],
-                ),
-                if (hasPhoto) ...[
-                  const SizedBox(height: 4),
-                  TextButton(
-                    onPressed: _removePhoto,
-                    child: const Text(
-                      'Hapus Foto Profil',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Tentang Aplikasi',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            elevation: 0,
-            color: Colors.white,
-            child: const Padding(
-              padding: EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ResponsiveLayout(
+              maxContentWidth: 850,
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 24),
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.account_balance_wallet_outlined,
-                        color: primaryColor,
-                        size: 30,
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'ExpenseTask',
-                          style: TextStyle(
-                            fontSize: 17,
+                  Center(
+                    child: Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 48,
+                          backgroundColor: colorScheme.primaryContainer,
+                          backgroundImage:
+                              _photoPath != null &&
+                                  File(_photoPath!).existsSync()
+                              ? FileImage(File(_photoPath!))
+                              : null,
+                          child:
+                              _photoPath == null ||
+                                  !File(_photoPath!).existsSync()
+                              ? Icon(
+                                  Icons.person_rounded,
+                                  size: 48,
+                                  color: colorScheme.onPrimaryContainer,
+                                )
+                              : null,
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          _profileName,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 6),
+                        Text(
+                          'Profil Pengguna',
+                          style: TextStyle(color: colorScheme.onSurfaceVariant),
+                        ),
+                        const SizedBox(height: 16),
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 10,
+                          runSpacing: 8,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: _editProfileName,
+                              icon: const Icon(Icons.edit_outlined),
+                              label: const Text('Ubah Nama'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: _changeProfilePhoto,
+                              icon: const Icon(Icons.photo_camera_outlined),
+                              label: const Text('Ubah Foto'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                  SizedBox(height: 12),
-                  Text(
-                    'Aplikasi untuk membantu mengelola tagihan, '
-                    'memantau pembayaran, dan melihat riwayat '
-                    'tagihan agar lebih teratur.',
-                    style: TextStyle(color: Colors.black54, height: 1.5),
+                  const SizedBox(height: 32),
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Column(
+                      children: [
+                        Icon(
+                          Icons.account_balance_wallet_rounded,
+                          color: Colors.white,
+                          size: 52,
+                        ),
+                        SizedBox(height: 14),
+                        Text(
+                          'ExpenseTask',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Aplikasi pencatatan dan pengingat tagihan '
+                          'untuk membantu mengelola jadwal pembayaran.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.white, height: 1.5),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Fitur Aplikasi',
+                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  const _FeatureTile(
+                    icon: Icons.receipt_long_outlined,
+                    title: 'Kelola Tagihan',
+                    description: 'Catat, lihat, ubah, dan hapus data tagihan.',
+                  ),
+                  const _FeatureTile(
+                    icon: Icons.notifications_active_outlined,
+                    title: 'Pantau Jatuh Tempo',
+                    description:
+                        'Periksa tanggal jatuh tempo agar pembayaran '
+                        'lebih teratur.',
+                  ),
+                  const _FeatureTile(
+                    icon: Icons.history_rounded,
+                    title: 'Riwayat Pembayaran',
+                    description:
+                        'Lihat tagihan yang telah ditandai lunas '
+                        'dan total pembayarannya.',
+                  ),
+                  const _FeatureTile(
+                    icon: Icons.devices_outlined,
+                    title: 'Tampilan Responsif',
+                    description:
+                        'Antarmuka menyesuaikan ukuran layar perangkat.',
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: colorScheme.outlineVariant),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'ExpenseTask',
+                          style: TextStyle(
+                            color: colorScheme.onSurface,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Versi 1.0.0',
+                          style: TextStyle(color: colorScheme.onSurfaceVariant),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Dikembangkan sebagai proyek UTS.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: colorScheme.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            elevation: 0,
-            color: Colors.white,
-            child: const Column(
+    );
+  }
+}
+
+class _FeatureTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+
+  const _FeatureTile({
+    required this.icon,
+    required this.title,
+    required this.description,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: colorScheme.primary, size: 26),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ListTile(
-                  leading: Icon(
-                    Icons.receipt_long_outlined,
-                    color: primaryColor,
-                  ),
-                  title: Text('Kelola Tagihan'),
-                  subtitle: Text('Tambah dan pantau tagihan kamu.'),
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                Divider(height: 1, indent: 16, endIndent: 16),
-                ListTile(
-                  leading: Icon(Icons.history, color: primaryColor),
-                  title: Text('Riwayat Pembayaran'),
-                  subtitle: Text('Lihat tagihan yang sudah dibayar.'),
+                const SizedBox(height: 5),
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                    height: 1.4,
+                  ),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Center(
-            child: Text(
-              'ExpenseTask • Versi 1.0.0',
-              style: TextStyle(color: Colors.black45),
             ),
           ),
         ],

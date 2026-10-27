@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../models/bill.dart';
 import '../providers/bill_provider.dart';
 import '../widgets/bill_card.dart';
+import '../widgets/responsive_layout.dart';
+import '../widgets/summary_card.dart';
 import 'add_bill_screen.dart';
 import 'bill_detail_screen.dart';
 
@@ -17,220 +20,415 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: provider,
-      builder: (context, _) {
-        final unpaid = provider.unpaidBills;
-        final paid = provider.paidBills;
-        final upcoming = unpaid.take(3).toList();
+    return Scaffold(
+      body: AnimatedBuilder(
+        animation: provider,
+        builder: (context, _) {
+          final bills = provider.bills;
+          final unpaidBills = bills.where((bill) => !bill.isPaid).toList();
+          final paidBills = bills.where((bill) => bill.isPaid).toList();
 
-        return Scaffold(
-          appBar: AppBar(
-            title: const Row(
-              children: [
-                Icon(Icons.account_balance_wallet, color: Color(0xFF2563EB)),
-                SizedBox(width: 10),
-                Text(
-                  'ExpenseTask',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            actions: [
-              IconButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Belum ada notifikasi baru.')),
-                  );
-                },
-                icon: const Icon(Icons.notifications_none),
-              ),
-            ],
-          ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => AddBillScreen(provider: provider),
-                ),
-              );
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('Tambah Tagihan'),
-          ),
-          body: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-            children: [
-              const Text(
-                'Dashboard',
-                style: TextStyle(
-                  fontSize: 25,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Kelola tagihanmu dengan lebih mudah.',
-                style: TextStyle(color: Color(0xFF64748B)),
-              ),
-              const SizedBox(height: 22),
-              Container(
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2864F0),
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          final totalUnpaid = unpaidBills.fold<double>(
+            0,
+            (total, bill) => total + bill.amount,
+          );
+
+          final totalPaid = paidBills.fold<double>(
+            0,
+            (total, bill) => total + bill.amount,
+          );
+
+          final upcomingBills = [...unpaidBills]
+            ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobile = constraints.maxWidth < 600;
+              final isCompact = constraints.maxWidth < 420;
+
+              return ResponsiveLayout(
+                maxContentWidth: 1200,
+                child: ListView(
+                  padding: EdgeInsets.fromLTRB(0, isMobile ? 12 : 24, 0, 32),
                   children: [
-                    const Text(
-                      'Total Tagihan Belum Dibayar',
-                      style: TextStyle(color: Colors.white70),
+                    // Header halaman tanpa logo atau judul aplikasi ganda.
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _WelcomeHeader(
+                            title: 'Ringkasan Tagihan',
+                            subtitle:
+                                'Pantau pembayaranmu agar tidak terlewat.',
+                            isMobile: isMobile,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 0),
+                          child: IconButton(
+                            tooltip: 'Riwayat Pembayaran',
+                            onPressed: () => onNavigate(2),
+                            icon: const Icon(Icons.history_rounded),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 10),
-                    Text(
-                      formatRupiah(provider.totalUnpaid),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
+
+                    SizedBox(height: isMobile ? 18 : 24),
+
+                    // Ringkasan tagihan responsif.
+                    _SummaryGrid(
+                      totalUnpaid: totalUnpaid,
+                      totalPaid: totalPaid,
+                      unpaidCount: unpaidBills.length,
+                      paidCount: paidBills.length,
+                      isCompact: isCompact,
+                    ),
+
+                    SizedBox(height: isMobile ? 24 : 32),
+
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Tagihan Mendatang',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => onNavigate(1),
+                          child: const Text('Lihat Semua'),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    if (upcomingBills.isEmpty)
+                      const _EmptyBills()
+                    else
+                      ...upcomingBills
+                          .take(3)
+                          .map(
+                            (bill) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: BillCard(
+                                bill: bill,
+                                onTap: () => _openBillDetail(context, bill),
+                              ),
+                            ),
+                          ),
+
+                    SizedBox(height: isMobile ? 24 : 32),
+
+                    const Text(
+                      'Aksi Cepat',
+                      style: TextStyle(
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    Text(
-                      '${unpaid.length} tagihan belum dibayar',
-                      style: const TextStyle(color: Colors.white),
+
+                    const SizedBox(height: 12),
+
+                    _QuickActions(
+                      isCompact: isCompact,
+                      onAddBill: () => _openAddBill(context),
+                      onViewBills: () => onNavigate(1),
+                      onViewHistory: () => onNavigate(2),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _SummaryTile(
-                      title: 'Belum Dibayar',
-                      amount: provider.totalUnpaid,
-                      count: unpaid.length,
-                      icon: Icons.access_time,
-                      color: const Color(0xFFEA580C),
-                      background: const Color(0xFFFFF7ED),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _SummaryTile(
-                      title: 'Sudah Dibayar',
-                      amount: provider.totalPaid,
-                      count: paid.length,
-                      icon: Icons.check_circle_outline,
-                      color: const Color(0xFF16A34A),
-                      background: const Color(0xFFF0FDF4),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 28),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Tagihan Terdekat',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  TextButton(
-                    onPressed: () => onNavigate(1),
-                    child: const Text('Lihat Semua'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              if (upcoming.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.check_circle_outline,
-                        size: 45,
-                        color: Colors.green,
-                      ),
-                      SizedBox(height: 8),
-                      Text('Semua tagihan sudah dibayar.'),
-                    ],
-                  ),
-                )
-              else
-                ...upcoming.map(
-                  (bill) => BillCard(
-                    bill: bill,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              BillDetailScreen(provider: provider, bill: bill),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _openAddBill(BuildContext context) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => AddBillScreen(provider: provider)),
+    );
+  }
+
+  void _openBillDetail(BuildContext context, Bill bill) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => BillDetailScreen(provider: provider, bill: bill),
+      ),
     );
   }
 }
 
-class _SummaryTile extends StatelessWidget {
+class _WelcomeHeader extends StatelessWidget {
   final String title;
-  final double amount;
-  final int count;
-  final IconData icon;
-  final Color color;
-  final Color background;
+  final String subtitle;
+  final bool isMobile;
 
-  const _SummaryTile({
+  const _WelcomeHeader({
     required this.title,
-    required this.amount,
-    required this.count,
-    required this.icon,
-    required this.color,
-    required this.background,
+    required this.subtitle,
+    required this.isMobile,
   });
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: isMobile ? 21 : 26,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: isMobile ? 12 : 15,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SummaryGrid extends StatelessWidget {
+  final double totalUnpaid;
+  final double totalPaid;
+  final int unpaidCount;
+  final int paidCount;
+  final bool isCompact;
+
+  const _SummaryGrid({
+    required this.totalUnpaid,
+    required this.totalPaid,
+    required this.unpaidCount,
+    required this.paidCount,
+    required this.isCompact,
+  });
+
+  String _formatRupiah(double amount) {
+    final value = amount.round().toString();
+    final formatted = value.replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+      (match) => '${match[1]}.',
+    );
+    return 'Rp $formatted';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.count(
+      crossAxisCount: isCompact ? 1 : 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      childAspectRatio: isCompact ? 2.4 : 1.65,
+      children: [
+        SummaryCard(
+          title: 'Belum Dibayar',
+          amount: _formatRupiah(totalUnpaid),
+          subtitle: '$unpaidCount tagihan',
+          icon: Icons.account_balance_wallet_rounded,
+          color: const Color(0xFF2563EB),
+        ),
+        SummaryCard(
+          title: 'Sudah Dibayar',
+          amount: _formatRupiah(totalPaid),
+          subtitle: '$paidCount tagihan',
+          icon: Icons.check_circle_rounded,
+          color: const Color(0xFF16A34A),
+        ),
+      ],
+    );
+  }
+}
+
+class _EmptyBills extends StatelessWidget {
+  const _EmptyBills();
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(18),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: const Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color),
-          const SizedBox(height: 12),
+          Icon(Icons.receipt_long_outlined, size: 42, color: Color(0xFF94A3B8)),
+          SizedBox(height: 12),
           Text(
-            title,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            'Tidak ada tagihan mendatang',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 4),
           Text(
-            formatRupiah(amount),
-            style: TextStyle(
-              color: color,
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
-            ),
+            'Tambahkan tagihan agar lebih mudah dipantau.',
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 4),
-          Text('$count tagihan', style: TextStyle(color: color, fontSize: 11)),
         ],
+      ),
+    );
+  }
+}
+
+class _QuickActions extends StatelessWidget {
+  final bool isCompact;
+  final VoidCallback onAddBill;
+  final VoidCallback onViewBills;
+  final VoidCallback onViewHistory;
+
+  const _QuickActions({
+    required this.isCompact,
+    required this.onAddBill,
+    required this.onViewBills,
+    required this.onViewHistory,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final actions = [
+      _QuickActionData(
+        title: 'Tambah Tagihan',
+        subtitle: 'Catat tagihan baru',
+        icon: Icons.add_circle_outline_rounded,
+        onTap: onAddBill,
+      ),
+      _QuickActionData(
+        title: 'Daftar Tagihan',
+        subtitle: 'Kelola tagihanmu',
+        icon: Icons.receipt_long_rounded,
+        onTap: onViewBills,
+      ),
+      _QuickActionData(
+        title: 'Riwayat',
+        subtitle: 'Lihat pembayaran',
+        icon: Icons.history_rounded,
+        onTap: onViewHistory,
+      ),
+    ];
+
+    if (isCompact) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: actions
+            .map(
+              (action) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _QuickActionCard(action: action),
+              ),
+            )
+            .toList(),
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: actions
+          .map(
+            (action) => Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: _QuickActionCard(action: action),
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class _QuickActionData {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _QuickActionData({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onTap,
+  });
+}
+
+class _QuickActionCard extends StatelessWidget {
+  final _QuickActionData action;
+
+  const _QuickActionCard({required this.action});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: action.onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(action.icon, color: const Color(0xFF2563EB)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      action.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      action.subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

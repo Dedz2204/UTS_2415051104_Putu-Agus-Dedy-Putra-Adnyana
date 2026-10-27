@@ -1,38 +1,32 @@
 import 'package:flutter/material.dart';
 
+import '../models/bill.dart';
 import '../providers/bill_provider.dart';
 import '../widgets/bill_card.dart';
+import '../widgets/responsive_layout.dart';
+import 'bill_detail_screen.dart';
 
-class PaymentHistoryScreen extends StatefulWidget {
+class PaymentHistoryScreen extends StatelessWidget {
   final BillProvider provider;
 
   const PaymentHistoryScreen({super.key, required this.provider});
 
-  @override
-  State<PaymentHistoryScreen> createState() => _PaymentHistoryScreenState();
-}
+  String _formatCurrency(double amount) {
+    final value = amount.toStringAsFixed(0);
+    final result = StringBuffer();
 
-class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
-  @override
-  void initState() {
-    super.initState();
-    widget.provider.addListener(_refresh);
-  }
+    for (var i = 0; i < value.length; i++) {
+      result.write(value[i]);
 
-  @override
-  void dispose() {
-    widget.provider.removeListener(_refresh);
-    super.dispose();
-  }
+      final remaining = value.length - i - 1;
+      if (remaining > 0 && remaining % 3 == 0) result.write('.');
+    }
 
-  void _refresh() {
-    if (mounted) setState(() {});
+    return 'Rp $result';
   }
 
   @override
   Widget build(BuildContext context) {
-    final bills = widget.provider.paidBills;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -40,74 +34,148 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(18),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF159B73), Color(0xFF42C99A)],
-              ),
-              borderRadius: BorderRadius.circular(22),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      body: AnimatedBuilder(
+        animation: provider,
+        builder: (context, _) {
+          final List<Bill> paidBills =
+              provider.bills.where((bill) => bill.isPaid).toList()
+                ..sort((a, b) => b.dueDate.compareTo(a.dueDate));
+
+          final totalPaid = paidBills.fold<double>(
+            0,
+            (total, bill) => total + bill.amount,
+          );
+
+          return ResponsiveLayout(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 20),
               children: [
-                const Icon(
-                  Icons.check_circle_outline,
-                  color: Colors.white,
-                  size: 34,
+                Container(
+                  padding: const EdgeInsets.all(22),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF16A34A),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle_outline_rounded,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Total Pembayaran',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          _formatCurrency(totalPaid),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 30,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${paidBills.length} transaksi selesai',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 28),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Pembayaran Selesai',
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${paidBills.length} transaksi',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 14),
-                const Text(
-                  'Total Pembayaran Selesai',
-                  style: TextStyle(color: Colors.white70),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  formatRupiah(widget.provider.totalPaid),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 28,
+                if (paidBills.isEmpty)
+                  const _EmptyPaymentHistory()
+                else
+                  ...paidBills.map(
+                    (bill) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: BillCard(
+                        bill: bill,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BillDetailScreen(
+                                bill: bill,
+                                provider: provider,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  '${bills.length} transaksi telah dibayar',
-                  style: const TextStyle(color: Colors.white),
-                ),
               ],
             ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _EmptyPaymentHistory extends StatelessWidget {
+  const _EmptyPaymentHistory();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.history_rounded,
+            size: 52,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 14),
           const Text(
-            'Transaksi Terakhir',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            'Belum Ada Riwayat',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
           ),
-          const SizedBox(height: 12),
-          if (bills.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 45),
-              child: Column(
-                children: [
-                  Icon(Icons.history, size: 56, color: Colors.grey),
-                  SizedBox(height: 12),
-                  Text(
-                    'Belum ada riwayat pembayaran',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    'Tagihan yang sudah dibayar akan muncul di sini.',
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            )
-          else
-            ...bills.map((bill) => BillCard(bill: bill)),
+          const SizedBox(height: 8),
+          Text(
+            'Tagihan yang sudah ditandai sebagai lunas akan muncul di sini.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );

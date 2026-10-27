@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/bill.dart';
 import '../providers/bill_provider.dart';
+import '../widgets/responsive_layout.dart';
 
 class AddBillScreen extends StatefulWidget {
   final BillProvider provider;
@@ -14,202 +15,259 @@ class AddBillScreen extends StatefulWidget {
 
 class _AddBillScreenState extends State<AddBillScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _name = TextEditingController();
-  final _provider = TextEditingController();
-  final _amount = TextEditingController();
-  final _note = TextEditingController();
+  final _nameController = TextEditingController();
+  final _providerController = TextEditingController();
+  final _amountController = TextEditingController();
+  final _noteController = TextEditingController();
 
-  BillCategory _category = BillCategory.internet;
-  DateTime _dueDate = DateTime.now().add(const Duration(days: 7));
+  BillCategory _category = BillCategory.listrik;
+  DateTime _dueDate = DateTime.now().add(const Duration(days: 1));
+  bool _isSaving = false;
+
+  final List<BillCategory> _categories = BillCategory.values;
 
   @override
   void dispose() {
-    _name.dispose();
-    _provider.dispose();
-    _amount.dispose();
-    _note.dispose();
+    _nameController.dispose();
+    _providerController.dispose();
+    _amountController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
-  Future<void> _chooseDate() async {
-    final date = await showDatePicker(
+  Future<void> _selectDate() async {
+    final now = DateTime.now();
+
+    final selectedDate = await showDatePicker(
       context: context,
-      initialDate: _dueDate,
-      firstDate: DateTime(2020),
+      initialDate: _dueDate.isBefore(DateTime(now.year, now.month, now.day))
+          ? DateTime(now.year, now.month, now.day)
+          : _dueDate,
+      firstDate: DateTime(now.year, now.month, now.day),
       lastDate: DateTime(2100),
     );
 
-    if (date != null) setState(() => _dueDate = date);
+    if (selectedDate != null && mounted) {
+      setState(() => _dueDate = selectedDate);
+    }
   }
 
-  void _saveBill() {
-    if (!_formKey.currentState!.validate()) return;
+  String _formatDate(DateTime date) {
+    const months = [
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+    ];
 
-    final amount = double.tryParse(
-      _amount.text.replaceAll('.', '').replaceAll(',', '.'),
-    );
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
 
-    if (amount == null || amount <= 0) return;
+  double? _parseAmount(String value) {
+    final normalized = value.trim().replaceAll('.', '').replaceAll(',', '.');
+    return double.tryParse(normalized);
+  }
 
-    widget.provider.addBill(
-      Bill(
+  Future<void> _saveBill() async {
+    if (!_formKey.currentState!.validate() || _isSaving) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      final amount = _parseAmount(_amountController.text);
+
+      if (amount == null || amount <= 0) {
+        throw const FormatException('Jumlah tagihan tidak valid.');
+      }
+
+      final noteText = _noteController.text.trim();
+
+      final bill = Bill(
         id: DateTime.now().microsecondsSinceEpoch.toString(),
-        name: _name.text.trim(),
-        providerName: _provider.text.trim(),
+        name: _nameController.text.trim(),
+        providerName: _providerController.text.trim(),
         amount: amount,
-        dueDate: _dueDate,
         category: _category,
-        note: _note.text.trim().isEmpty ? null : _note.text.trim(),
-      ),
-    );
+        dueDate: _dueDate,
+        note: noteText.isEmpty ? null : noteText,
+      );
 
-    Navigator.pop(context, true);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Tagihan berhasil ditambahkan')),
-    );
+      widget.provider.addBill(bill);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tagihan berhasil ditambahkan.')),
+      );
+
+      Navigator.pop(context);
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menambahkan tagihan: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Tambah Tagihan',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2864F0),
-                borderRadius: BorderRadius.circular(22),
+      appBar: AppBar(title: const Text('Tambah Tagihan')),
+      body: ResponsiveLayout(
+        maxContentWidth: 760,
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            children: [
+              const Text(
+                'Informasi Tagihan',
+                style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
               ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.receipt_long, color: Colors.white, size: 35),
-                  SizedBox(height: 12),
-                  Text(
-                    'Catat Tagihan Baru',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'Isi informasi tagihan dengan lengkap.',
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Informasi Tagihan',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _name,
-              decoration: const InputDecoration(
-                labelText: 'Nama tagihan',
-                hintText: 'Contoh: Tagihan Internet',
-                prefixIcon: Icon(Icons.receipt),
-              ),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Nama wajib diisi' : null,
-            ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _provider,
-              decoration: const InputDecoration(
-                labelText: 'Penyedia layanan',
-                hintText: 'Contoh: IndiHome',
-                prefixIcon: Icon(Icons.business),
-              ),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Penyedia wajib diisi' : null,
-            ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _amount,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Nominal tagihan',
-                prefixText: 'Rp ',
-                prefixIcon: Icon(Icons.payments_outlined),
-              ),
-              validator: (v) {
-                final value = double.tryParse(
-                  (v ?? '').replaceAll('.', '').replaceAll(',', '.'),
-                );
-                return value == null || value <= 0
-                    ? 'Masukkan nominal yang valid'
-                    : null;
-              },
-            ),
-            const SizedBox(height: 14),
-            DropdownButtonFormField<BillCategory>(
-              initialValue: BillCategory.listrik,
-              decoration: const InputDecoration(
-                labelText: 'Kategori tagihan',
-                prefixIcon: Icon(Icons.category_outlined),
-              ),
-              items: BillCategory.values
-                  .map(
-                    (category) => DropdownMenuItem(
-                      value: category,
-                      child: Text(categoryLabel(category)),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) setState(() => _category = value);
-              },
-            ),
-            const SizedBox(height: 14),
-            Card(
-              color: Colors.white,
-              elevation: 0,
-              child: ListTile(
-                leading: const Icon(
-                  Icons.calendar_month,
-                  color: Color(0xFF2864F0),
+              const SizedBox(height: 6),
+              Text(
+                'Isi informasi tagihan agar jadwal pembayaran mudah dipantau.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-                title: const Text('Tanggal jatuh tempo'),
-                subtitle: Text(
-                  '${_dueDate.day}/${_dueDate.month}/${_dueDate.year}',
+              ),
+              const SizedBox(height: 24),
+              TextFormField(
+                controller: _nameController,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  labelText: 'Nama Tagihan',
+                  hintText: 'Contoh: Tagihan Wi-Fi',
+                  prefixIcon: Icon(Icons.receipt_long_outlined),
+                  border: OutlineInputBorder(),
                 ),
-                trailing: const Icon(Icons.edit_calendar),
-                onTap: _chooseDate,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Nama tagihan wajib diisi.';
+                  }
+                  return null;
+                },
               ),
-            ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _note,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Catatan (opsional)',
-                hintText: 'Tambahkan keterangan...',
-                prefixIcon: Icon(Icons.notes),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _providerController,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Penyedia Tagihan',
+                  hintText: 'Contoh: PLN atau penyedia internet',
+                  prefixIcon: Icon(Icons.business_outlined),
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Penyedia tagihan wajib diisi.';
+                  }
+                  return null;
+                },
               ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              height: 54,
-              child: FilledButton.icon(
-                onPressed: _saveBill,
-                icon: const Icon(Icons.save_outlined),
-                label: const Text('Simpan Tagihan'),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _amountController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Jumlah Tagihan (Rp)',
+                  hintText: 'Contoh: 150000',
+                  prefixIcon: Icon(Icons.payments_outlined),
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  final amount = _parseAmount(value ?? '');
+
+                  if (amount == null || amount <= 0) {
+                    return 'Masukkan jumlah yang valid.';
+                  }
+
+                  return null;
+                },
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              DropdownButtonFormField<BillCategory>(
+                initialValue: _category,
+                decoration: const InputDecoration(
+                  labelText: 'Kategori',
+                  prefixIcon: Icon(Icons.category_outlined),
+                  border: OutlineInputBorder(),
+                ),
+                items: _categories.map((category) {
+                  return DropdownMenuItem<BillCategory>(
+                    value: category,
+                    child: Text(categoryLabel(category)),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _category = value);
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: _selectDate,
+                borderRadius: BorderRadius.circular(12),
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Tanggal Jatuh Tempo',
+                    prefixIcon: Icon(Icons.calendar_month_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(child: Text(_formatDate(_dueDate))),
+                      const Icon(Icons.edit_calendar_outlined),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _noteController,
+                minLines: 3,
+                maxLines: 5,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  labelText: 'Catatan (Opsional)',
+                  hintText: 'Tambahkan informasi jika diperlukan',
+                  alignLabelWithHint: true,
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: _isSaving ? null : _saveBill,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined),
+                label: Text(_isSaving ? 'Menyimpan...' : 'Simpan Tagihan'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
