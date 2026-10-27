@@ -43,7 +43,9 @@ class _AboutScreenState extends State<AboutScreen> {
         _isLoading = false;
       });
     } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -71,6 +73,7 @@ class _AboutScreenState extends State<AboutScreen> {
           FilledButton(
             onPressed: () {
               final value = controller.text.trim();
+
               if (value.isNotEmpty) {
                 Navigator.pop(dialogContext, value);
               }
@@ -83,7 +86,7 @@ class _AboutScreenState extends State<AboutScreen> {
 
     controller.dispose();
 
-    if (newName == null) return;
+    if (newName == null || !mounted) return;
 
     try {
       final preferences = await SharedPreferences.getInstance();
@@ -91,17 +94,25 @@ class _AboutScreenState extends State<AboutScreen> {
 
       if (!mounted) return;
 
-      setState(() => _profileName = newName);
+      setState(() {
+        _profileName = newName;
+      });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nama profil berhasil diperbarui.')),
+        const SnackBar(
+          content: Text('Nama profil berhasil diperbarui.'),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Gagal menyimpan nama: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menyimpan nama: $error'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -113,91 +124,117 @@ class _AboutScreenState extends State<AboutScreen> {
         maxWidth: 1200,
       );
 
-      if (image == null) return;
+      if (image == null || !mounted) return;
 
       final directory = await getApplicationDocumentsDirectory();
-      final extension = image.path.contains('.')
-          ? image.path.split('.').last
-          : 'jpg';
-      final savedFile = await File(image.path)
-          .copy('${directory.path}/expense_task_profile.$extension');
+      final extension =
+          image.path.contains('.') ? image.path.split('.').last : 'jpg';
+
+      final savedFile = await File(image.path).copy(
+        '${directory.path}/expense_task_profile.$extension',
+      );
 
       final preferences = await SharedPreferences.getInstance();
       await preferences.setString(_photoKey, savedFile.path);
 
       if (!mounted) return;
 
-      setState(() => _photoPath = savedFile.path);
+      setState(() {
+        _photoPath = savedFile.path;
+      });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Foto profil berhasil diperbarui.')),
+        const SnackBar(
+          content: Text('Foto profil berhasil diperbarui.'),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Gagal memilih foto: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memilih foto: $error'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
+  }
+
+  bool get _hasProfilePhoto {
+    final path = _photoPath;
+
+    return path != null && File(path).existsSync();
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
         title: const Text(
-          'Tentang Aplikasi',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          'Profil',
+          style: TextStyle(fontWeight: FontWeight.w700),
         ),
+        backgroundColor: const Color(0xFFF5F7FB),
+        foregroundColor: const Color(0xFF0F172A),
+        elevation: 0,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : ResponsiveLayout(
               maxContentWidth: 850,
               child: ListView(
-                padding: const EdgeInsets.symmetric(vertical: 24),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
                 children: [
-                  Center(
+                  // Informasi profil pengguna.
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: const Color(0xFFE2E8F0),
+                      ),
+                    ),
                     child: Column(
                       children: [
                         CircleAvatar(
-                          radius: 48,
-                          backgroundColor: colorScheme.primaryContainer,
-                          backgroundImage:
-                              _photoPath != null &&
-                                  File(_photoPath!).existsSync()
+                          radius: 46,
+                          backgroundColor: const Color(0xFFEFF6FF),
+                          backgroundImage: _hasProfilePhoto
                               ? FileImage(File(_photoPath!))
                               : null,
-                          child:
-                              _photoPath == null ||
-                                  !File(_photoPath!).existsSync()
-                              ? Icon(
-                                  Icons.person_rounded,
-                                  size: 48,
-                                  color: colorScheme.onPrimaryContainer,
+                          child: !_hasProfilePhoto
+                              ? const Icon(
+                                  Icons.person_outline_rounded,
+                                  size: 46,
+                                  color: Color(0xFF2563EB),
                                 )
                               : null,
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 16),
                         Text(
                           _profileName,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 21,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
                           ),
                         ),
                         const SizedBox(height: 6),
-                        Text(
+                        const Text(
                           'Profil Pengguna',
-                          style: TextStyle(color: colorScheme.onSurfaceVariant),
+                          style: TextStyle(
+                            color: Color(0xFF64748B),
+                          ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 20),
                         Wrap(
                           alignment: WrapAlignment.center,
                           spacing: 10,
-                          runSpacing: 8,
+                          runSpacing: 10,
                           children: [
                             OutlinedButton.icon(
                               onPressed: _editProfileName,
@@ -206,7 +243,9 @@ class _AboutScreenState extends State<AboutScreen> {
                             ),
                             OutlinedButton.icon(
                               onPressed: _changeProfilePhoto,
-                              icon: const Icon(Icons.photo_camera_outlined),
+                              icon: const Icon(
+                                Icons.photo_camera_outlined,
+                              ),
                               label: const Text('Ubah Foto'),
                             ),
                           ],
@@ -214,49 +253,57 @@ class _AboutScreenState extends State<AboutScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 32),
+
+                  const SizedBox(height: 24),
+
+                  // Informasi aplikasi tanpa logo.
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: colorScheme.primary,
+                      color: const Color(0xFF2563EB),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.account_balance_wallet_rounded,
-                          color: Colors.white,
-                          size: 52,
-                        ),
-                        SizedBox(height: 14),
                         Text(
                           'ExpenseTask',
                           style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 25,
+                            fontWeight: FontWeight.w800,
                             color: Colors.white,
                           ),
                         ),
-                        SizedBox(height: 8),
+                        SizedBox(height: 10),
                         Text(
                           'Aplikasi pencatatan dan pengingat tagihan '
                           'untuk membantu mengelola jadwal pembayaran.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white, height: 1.5),
+                          style: TextStyle(
+                            color: Colors.white,
+                            height: 1.6,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+
+                  const SizedBox(height: 28),
+
                   const Text(
                     'Fitur Aplikasi',
-                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
+
                   const _FeatureTile(
                     icon: Icons.receipt_long_outlined,
                     title: 'Kelola Tagihan',
-                    description: 'Catat, lihat, ubah, dan hapus data tagihan.',
+                    description:
+                        'Catat, lihat, ubah, dan hapus data tagihan.',
                   ),
                   const _FeatureTile(
                     icon: Icons.notifications_active_outlined,
@@ -278,33 +325,41 @@ class _AboutScreenState extends State<AboutScreen> {
                     description:
                         'Antarmuka menyesuaikan ukuran layar perangkat.',
                   ),
-                  const SizedBox(height: 24),
+
+                  const SizedBox(height: 16),
+
                   Container(
-                    padding: const EdgeInsets.all(18),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: colorScheme.outlineVariant),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: const Color(0xFFE2E8F0),
+                      ),
                     ),
-                    child: Column(
+                    child: const Column(
                       children: [
                         Text(
                           'ExpenseTask',
                           style: TextStyle(
-                            color: colorScheme.onSurface,
-                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0F172A),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        SizedBox(height: 6),
                         Text(
                           'Versi 1.0.0',
-                          style: TextStyle(color: colorScheme.onSurfaceVariant),
+                          style: TextStyle(
+                            color: Color(0xFF64748B),
+                          ),
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: 8),
                         Text(
                           'Dikembangkan sebagai proyek UTS.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: colorScheme.onSurfaceVariant,
+                            color: Color(0xFF64748B),
                             fontSize: 12,
                           ),
                         ),
@@ -331,20 +386,24 @@ class _FeatureTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colorScheme.outlineVariant),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE2E8F0),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: colorScheme.primary, size: 26),
+          Icon(
+            icon,
+            color: const Color(0xFF2563EB),
+            size: 26,
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -352,14 +411,17 @@ class _FeatureTile extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A),
+                  ),
                 ),
                 const SizedBox(height: 5),
                 Text(
                   description,
-                  style: TextStyle(
-                    color: colorScheme.onSurfaceVariant,
-                    height: 1.4,
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    height: 1.5,
                   ),
                 ),
               ],
