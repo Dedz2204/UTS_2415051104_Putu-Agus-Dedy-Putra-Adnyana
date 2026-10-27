@@ -84,6 +84,12 @@ class _ExpenseTaskAppState extends State<ExpenseTaskApp> {
   }
 
   @override
+  void dispose() {
+    provider.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
       HomeScreen(

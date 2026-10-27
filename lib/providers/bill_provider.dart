@@ -1,101 +1,120 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/bill.dart';
+import '../repositories/bill_repository.dart';
 
 class BillProvider extends ChangeNotifier {
-  final List<Bill> _bills = [
-    Bill(
-      id: '1',
-      name: 'Tagihan Internet',
-      providerName: 'IndiHome',
-      amount: 250000,
-      dueDate: DateTime(2026, 10, 28),
-      category: BillCategory.internet,
-    ),
-    Bill(
-      id: '2',
-      name: 'Tagihan Listrik',
-      providerName: 'PLN',
-      amount: 350000,
-      dueDate: DateTime(2026, 10, 30),
-      category: BillCategory.listrik,
-    ),
-    Bill(
-      id: '3',
-      name: 'Langganan Bulanan',
-      providerName: 'Layanan Digital',
-      amount: 150000,
-      dueDate: DateTime(2026, 11, 2),
-      category: BillCategory.lainnya,
-    ),
-    Bill(
-      id: '4',
-      name: 'Tagihan Air',
-      providerName: 'PDAM',
-      amount: 75000,
-      dueDate: DateTime(2026, 10, 25),
-      category: BillCategory.air,
-      isPaid: true,
-      paidAt: DateTime(2026, 10, 24),
-    ),
-    Bill(
-      id: '5',
-      name: 'Paket Telepon',
-      providerName: 'Operator Seluler',
-      amount: 425000,
-      dueDate: DateTime(2026, 10, 20),
-      category: BillCategory.telepon,
-      isPaid: true,
-      paidAt: DateTime(2026, 10, 19),
-    ),
-  ];
+  BillProvider({BillRepository? repository})
+      : _repository = repository ?? BillRepository() {
+    loadBills();
+  }
+
+  final BillRepository _repository;
+  List<Bill> _bills = [];
+
+  bool _isLoading = false;
+  String? _errorMessage;
 
   List<Bill> get bills => List.unmodifiable(_bills);
+  bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
+  bool get hasError => _errorMessage != null;
+  bool get isEmpty => !_isLoading && _bills.isEmpty;
 
   List<Bill> get unpaidBills {
-    final result = _bills.where((b) => !b.isPaid).toList();
+    final result = _bills.where((bill) => !bill.isPaid).toList();
     result.sort((a, b) => a.dueDate.compareTo(b.dueDate));
     return result;
   }
 
   List<Bill> get paidBills {
-    final result = _bills.where((b) => b.isPaid).toList();
+    final result = _bills.where((bill) => bill.isPaid).toList();
     result.sort(
-      (a, b) => (b.paidAt ?? b.dueDate).compareTo(a.paidAt ?? a.dueDate),
+      (a, b) =>
+          (b.paidAt ?? b.dueDate).compareTo(a.paidAt ?? a.dueDate),
     );
     return result;
   }
 
-  double get totalUnpaid => unpaidBills.fold(0.0, (sum, b) => sum + b.amount);
+  double get totalUnpaid =>
+      unpaidBills.fold(0.0, (sum, bill) => sum + bill.amount);
 
-  double get totalPaid => paidBills.fold(0.0, (sum, b) => sum + b.amount);
+  double get totalPaid =>
+      paidBills.fold(0.0, (sum, bill) => sum + bill.amount);
 
-  void addBill(Bill bill) {
-    _bills.add(bill);
+  Future<void> loadBills() async {
+    _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
-  }
 
-  void updateBill(Bill updated) {
-    final index = _bills.indexWhere((b) => b.id == updated.id);
-    if (index != -1) {
-      _bills[index] = updated;
+    try {
+      _bills = (await _repository.getBills()).toList();
+    } catch (error) {
+      _errorMessage = 'Gagal memuat tagihan: $error';
+    } finally {
+      _isLoading = false;
       notifyListeners();
     }
   }
 
-  void deleteBill(String id) {
-    _bills.removeWhere((b) => b.id == id);
-    notifyListeners();
+  Future<void> addBill(Bill bill) async {
+    try {
+      _errorMessage = null;
+      await _repository.addBill(bill);
+      _bills = [..._bills, bill];
+      notifyListeners();
+    } catch (error) {
+      _errorMessage = 'Gagal menambahkan tagihan: $error';
+      notifyListeners();
+      rethrow;
+    }
   }
 
-  void markPaid(String id) {
-    final index = _bills.indexWhere((b) => b.id == id);
+  Future<void> updateBill(Bill updated) async {
+    try {
+      _errorMessage = null;
+      await _repository.updateBill(updated);
+
+      final index = _bills.indexWhere((bill) => bill.id == updated.id);
+      if (index != -1) {
+        _bills[index] = updated;
+      }
+
+      notifyListeners();
+    } catch (error) {
+      _errorMessage = 'Gagal memperbarui tagihan: $error';
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> deleteBill(String id) async {
+    try {
+      _errorMessage = null;
+      await _repository.deleteBill(id);
+      _bills = _bills.where((bill) => bill.id != id).toList();
+      notifyListeners();
+    } catch (error) {
+      _errorMessage = 'Gagal menghapus tagihan: $error';
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> markPaid(String id) async {
+    final index = _bills.indexWhere((bill) => bill.id == id);
     if (index == -1) return;
 
-    _bills[index] = _bills[index].copyWith(
-      isPaid: true,
-      paidAt: DateTime.now(),
+    await updateBill(
+      _bills[index].copyWith(
+        isPaid: true,
+        paidAt: DateTime.now(),
+      ),
     );
+  }
+
+  void clearError() {
+    _errorMessage = null;
     notifyListeners();
   }
 }
