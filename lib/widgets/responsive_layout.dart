@@ -1,2 +1,2 @@
-﻿// Responsive Layout Widget
+// Responsive Layout Widget
 // Responsibility: Adapts application layout to different screen sizes.
