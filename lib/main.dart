@@ -1,6 +1,6 @@
-
 import 'package:flutter/material.dart';
 
+import 'config/supabase_config.dart';
 import 'providers/bill_provider.dart';
 import 'providers/holiday_provider.dart';
 import 'screens/home_screen.dart';
@@ -9,7 +9,22 @@ import 'screens/payment_history_screen.dart';
 import 'screens/about_screen.dart';
 import 'widgets/responsive_layout.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Inisialisasi Supabase.
+  await SupabaseConfig.initialize();
+
+  // Membuat sesi anonim jika pengguna belum memiliki sesi.
+  if (SupabaseConfig.client.auth.currentSession == null) {
+    await SupabaseConfig.client.auth.signInAnonymously();
+  }
+
+  // Menampilkan User ID Supabase di terminal.
+  debugPrint(
+    'SUPABASE USER ID: ${SupabaseConfig.client.auth.currentUser?.id}',
+  );
+
   runApp(const ExpenseTaskApp());
 }
 

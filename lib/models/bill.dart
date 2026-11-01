@@ -51,30 +51,44 @@ class Bill {
         ? rawAmount.toDouble()
         : double.tryParse(rawAmount?.toString() ?? '') ?? 0.0;
 
-    final rawDueDate = json['dueDate'] ?? json['due_date'];
+    final rawDueDate = json['dueDate'] ??
+        json['due_date'];
+
     final parsedDueDate = DateTime.tryParse(
       rawDueDate?.toString() ?? '',
     );
 
     final rawPaidAt = json['paidAt'] ?? json['paid_at'];
+
     final parsedPaidAt = rawPaidAt == null
         ? null
         : DateTime.tryParse(rawPaidAt.toString());
 
+    final rawPaymentStatus = json['payment_status']
+        ?.toString()
+        .toLowerCase();
+
     final rawIsPaid = json['isPaid'] ?? json['is_paid'];
+
+    final isPaid = rawPaymentStatus != null
+        ? rawPaymentStatus == 'paid'
+        : rawIsPaid == true ||
+            rawIsPaid == 1 ||
+            rawIsPaid == '1' ||
+            rawIsPaid == 'true';
 
     return Bill(
       id: (json['id'] ?? '').toString(),
-      name: (json['name'] ?? '').toString(),
-      providerName:
-          (json['providerName'] ?? json['provider_name'] ?? '').toString(),
+      name: (json['bill_name'] ?? json['name'] ?? '').toString(),
+      providerName: (
+        json['provider_name'] ??
+        json['providerName'] ??
+        ''
+      ).toString(),
       amount: amount,
       dueDate: parsedDueDate ?? DateTime(2000, 1, 1),
       category: category,
-      isPaid: rawIsPaid == true ||
-          rawIsPaid == 1 ||
-          rawIsPaid == '1' ||
-          rawIsPaid == 'true',
+      isPaid: isPaid,
       paidAt: parsedPaidAt,
       note: json['note'] == null ||
               json['note'].toString().trim().isEmpty
