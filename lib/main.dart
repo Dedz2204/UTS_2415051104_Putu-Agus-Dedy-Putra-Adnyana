@@ -1,6 +1,8 @@
+
 import 'package:flutter/material.dart';
 
 import 'providers/bill_provider.dart';
+import 'providers/holiday_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/bill_list_screen.dart';
 import 'screens/payment_history_screen.dart';
@@ -20,6 +22,7 @@ class ExpenseTaskApp extends StatefulWidget {
 
 class _ExpenseTaskAppState extends State<ExpenseTaskApp> {
   late final BillProvider provider = BillProvider();
+  late final HolidayProvider holidayProvider = HolidayProvider();
 
   int selectedIndex = 0;
 
@@ -86,6 +89,7 @@ class _ExpenseTaskAppState extends State<ExpenseTaskApp> {
   @override
   void dispose() {
     provider.dispose();
+    holidayProvider.dispose();
     super.dispose();
   }
 
@@ -94,6 +98,7 @@ class _ExpenseTaskAppState extends State<ExpenseTaskApp> {
     final pages = <Widget>[
       HomeScreen(
         provider: provider,
+        holidayProvider: holidayProvider,
         onNavigate: navigateTo,
       ),
       BillListScreen(provider: provider),
@@ -285,8 +290,7 @@ class _Header extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: _ExpenseTaskAppState.primaryColor
-                  .withAlpha(25),
+              color: _ExpenseTaskAppState.primaryColor.withAlpha(25),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Padding(
@@ -430,12 +434,15 @@ class _Sidebar extends StatelessWidget {
                               children: [
                                 Icon(
                                   selected
-                                      ? _ExpenseTaskAppState.icons[index]
+                                      ? _ExpenseTaskAppState
+                                          .icons[index]
                                       : _ExpenseTaskAppState
                                           .outlinedIcons[index],
                                   color: selected
-                                      ? _ExpenseTaskAppState.primaryColor
-                                      : _ExpenseTaskAppState.mutedColor,
+                                      ? _ExpenseTaskAppState
+                                          .primaryColor
+                                      : _ExpenseTaskAppState
+                                          .mutedColor,
                                   size: 22,
                                 ),
                                 if (isDesktop) ...[

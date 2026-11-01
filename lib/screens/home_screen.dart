@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/bill.dart';
 import '../providers/bill_provider.dart';
+import '../providers/holiday_provider.dart';
 import '../widgets/bill_card.dart';
 import '../widgets/responsive_layout.dart';
 import 'add_bill_screen.dart';
@@ -9,11 +10,13 @@ import 'bill_detail_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   final BillProvider provider;
+  final HolidayProvider holidayProvider;
   final ValueChanged<int> onNavigate;
 
   const HomeScreen({
     super.key,
     required this.provider,
+    required this.holidayProvider,
     required this.onNavigate,
   });
 
@@ -29,7 +32,6 @@ class HomeScreen extends StatelessWidget {
       body: AnimatedBuilder(
         animation: provider,
         builder: (context, child) {
-          // Semua data ringkasan menggunakan sumber yang sama.
           final unpaidBills = provider.unpaidBills;
           final paidBills = provider.paidBills;
           final totalUnpaid = provider.totalUnpaid;
@@ -44,6 +46,7 @@ class HomeScreen extends StatelessWidget {
               bill.dueDate.month,
               bill.dueDate.day,
             );
+
             return dueDate.isBefore(today);
           }).length;
 
@@ -64,12 +67,14 @@ class HomeScreen extends StatelessWidget {
                       unpaidCount: unpaidBills.length,
                       overdueCount: overdueCount,
                     ),
+
                     const SizedBox(height: 26),
 
                     _buildSectionHeader(
                       'Ringkasan',
                       'Lihat kondisi tagihanmu',
                     ),
+
                     const SizedBox(height: 14),
 
                     _buildSummaryGrid(
@@ -80,6 +85,7 @@ class HomeScreen extends StatelessWidget {
                       paidCount: paidBills.length,
                       overdueCount: overdueCount,
                     ),
+
                     const SizedBox(height: 28),
 
                     _buildSectionHeader(
@@ -90,6 +96,7 @@ class HomeScreen extends StatelessWidget {
                         child: const Text('Lihat Semua'),
                       ),
                     ),
+
                     const SizedBox(height: 14),
 
                     if (unpaidBills.isEmpty)
@@ -100,7 +107,8 @@ class HomeScreen extends StatelessWidget {
                           padding: const EdgeInsets.only(bottom: 12),
                           child: BillCard(
                             bill: bill,
-                            onTap: () => _openBillDetail(context, bill),
+                            onTap: () =>
+                                _openBillDetail(context, bill),
                           ),
                         ),
                       ),
@@ -111,11 +119,24 @@ class HomeScreen extends StatelessWidget {
                       'Aksi Cepat',
                       'Kelola tagihan dengan mudah',
                     ),
+
                     const SizedBox(height: 14),
 
                     _buildQuickActions(isMobile: isMobile),
 
                     const SizedBox(height: 28),
+
+                    _buildSectionHeader(
+                      'Informasi Hari Libur',
+                      'Hari libur nasional Indonesia',
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    _buildHolidaySection(),
+
+                    const SizedBox(height: 28),
+
                     const Center(
                       child: Padding(
                         padding: EdgeInsets.all(8),
@@ -136,6 +157,148 @@ class HomeScreen extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+
+  // Informasi hari libur dari REST API.
+  Widget _buildHolidaySection() {
+    return AnimatedBuilder(
+      animation: holidayProvider,
+      builder: (context, child) {
+        if (holidayProvider.isLoading) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        if (holidayProvider.hasError) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Column(
+              children: [
+                const Icon(
+                  Icons.wifi_off_rounded,
+                  color: Colors.red,
+                  size: 32,
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Gagal memuat informasi hari libur.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: dark,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () => holidayProvider.retry(),
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Coba Lagi'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        if (holidayProvider.isEmpty) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: const Text(
+              'Belum ada data hari libur untuk tahun ini.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: muted,
+                fontSize: 13,
+              ),
+            ),
+          );
+        }
+
+        final holidays = holidayProvider.holidays;
+
+        return Column(
+          children: holidays.map((holiday) {
+            final date = holiday.date;
+
+            final formattedDate =
+                '${date.day.toString().padLeft(2, '0')}-'
+                '${date.month.toString().padLeft(2, '0')}-'
+                '${date.year}';
+
+            return Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xFFE2E8F0),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.event_rounded,
+                      color: primary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          holiday.localName,
+                          style: const TextStyle(
+                            color: dark,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          formattedDate,
+                          style: const TextStyle(
+                            color: muted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        );
+      },
     );
   }
 
@@ -251,7 +414,10 @@ class HomeScreen extends StatelessWidget {
 
   Widget _heroBadge(IconData icon, String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 9,
+      ),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(12),
@@ -346,7 +512,8 @@ class HomeScreen extends StatelessWidget {
         children: [
           for (var i = 0; i < cards.length; i++) ...[
             cards[i],
-            if (i < cards.length - 1) const SizedBox(height: 12),
+            if (i < cards.length - 1)
+              const SizedBox(height: 12),
           ],
         ],
       );
@@ -357,7 +524,8 @@ class HomeScreen extends StatelessWidget {
       children: [
         for (var i = 0; i < cards.length; i++) ...[
           Expanded(child: cards[i]),
-          if (i < cards.length - 1) const SizedBox(width: 14),
+          if (i < cards.length - 1)
+            const SizedBox(width: 14),
         ],
       ],
     );
@@ -376,7 +544,9 @@ class HomeScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: const Color(0xFFE2E8F0),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -435,7 +605,9 @@ class HomeScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: const Color(0xFFE2E8F0),
+        ),
       ),
       child: Column(
         children: [
@@ -599,7 +771,9 @@ class _QuickActionCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(
+              color: const Color(0xFFE2E8F0),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
