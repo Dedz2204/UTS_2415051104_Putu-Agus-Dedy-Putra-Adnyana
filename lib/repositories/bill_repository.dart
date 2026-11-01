@@ -7,19 +7,19 @@ class BillRepository {
   BillRepository({SupabaseBillService? service})
       : _service = service ?? SupabaseBillService();
 
-  Future<List<Bill>> getBills() {
+  Future<List<Bill>> getBills() async {
     return _service.getBills();
   }
 
-  Future<Bill> addBill(Bill bill) {
+  Future<Bill> addBill(Bill bill) async {
     return _service.addBill(bill);
   }
 
-  Future<void> updateBill(Bill bill) {
-    return _service.updateBill(bill);
+  Future<void> updateBill(Bill bill) async {
+    await _service.updateBill(bill);
   }
 
-  Future<void> deleteBill(String id) {
-    return _service.deleteBill(id);
+  Future<void> deleteBill(String id) async {
+    await _service.deleteBill(id);
   }
 }

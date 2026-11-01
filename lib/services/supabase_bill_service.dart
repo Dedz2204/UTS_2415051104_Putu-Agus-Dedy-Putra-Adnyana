@@ -62,12 +62,9 @@ class SupabaseBillService {
           'category': bill.category.name,
           'due_date': bill.dueDate.toIso8601String().split('T').first,
           'payment_status': bill.isPaid ? 'paid' : 'unpaid',
-
-          // Status Unpaid akan mengosongkan paid_at.
           'paid_at': bill.isPaid
               ? (bill.paidAt ?? DateTime.now()).toIso8601String()
               : null,
-
           'note': bill.note,
         })
         .eq('id', int.parse(bill.id))
@@ -83,10 +80,18 @@ class SupabaseBillService {
   }
 
   Future<void> deleteBill(String id) async {
-    await _client
+    final response = await _client
         .from('bills')
         .delete()
         .eq('id', int.parse(id))
-        .eq('user_id', _userId);
+        .eq('user_id', _userId)
+        .select('id')
+        .maybeSingle();
+
+    if (response == null) {
+      throw StateError(
+        'Tagihan tidak ditemukan atau tidak memiliki akses untuk dihapus.',
+      );
+    }
   }
 }

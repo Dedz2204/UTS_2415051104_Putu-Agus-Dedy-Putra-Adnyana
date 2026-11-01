@@ -448,8 +448,8 @@ class _BillListScreenState extends State<BillListScreen> {
     );
   }
 
-  void _openBillDetail(Bill bill) {
-    Navigator.push(
+  Future<void> _openBillDetail(Bill bill) async {
+    final deleted = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => BillDetailScreen(
@@ -458,6 +458,18 @@ class _BillListScreenState extends State<BillListScreen> {
         ),
       ),
     );
+
+    if (!mounted) return;
+
+    if (deleted == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tagihan berhasil dihapus.'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Color(0xFF16A34A),
+        ),
+      );
+    }
   }
 }
 

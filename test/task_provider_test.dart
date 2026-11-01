@@ -8,11 +8,13 @@ class FakeBillRepository extends BillRepository {
     List<Bill> initialBills = const [],
     this.shouldFailLoading = false,
     this.shouldFailUpdating = false,
+    this.shouldFailDeleting = false,
   }) : _testBills = List<Bill>.from(initialBills);
 
   final List<Bill> _testBills;
   final bool shouldFailLoading;
   final bool shouldFailUpdating;
+  final bool shouldFailDeleting;
 
   @override
   Future<List<Bill>> getBills() async {
@@ -47,7 +49,19 @@ class FakeBillRepository extends BillRepository {
 
   @override
   Future<void> deleteBill(String id) async {
-    _testBills.removeWhere((bill) => bill.id == id);
+    if (shouldFailDeleting) {
+      throw Exception('Simulasi kegagalan menghapus data');
+    }
+
+    final index = _testBills.indexWhere(
+      (bill) => bill.id == id,
+    );
+
+    if (index == -1) {
+      throw StateError('Tagihan tidak ditemukan');
+    }
+
+    _testBills.removeAt(index);
   }
 }
 
@@ -210,6 +224,34 @@ void main() {
       provider.dispose();
     });
 
+    test('tidak mengubah state jika delete gagal', () async {
+      final provider = BillProvider(
+        repository: FakeBillRepository(
+          initialBills: [createBill()],
+          shouldFailDeleting: true,
+        ),
+      );
+
+      await Future<void>.delayed(Duration.zero);
+
+      try {
+        await expectLater(
+          provider.deleteBill('test-1'),
+          throwsException,
+        );
+
+        expect(provider.bills.length, 1);
+        expect(provider.bills.first.id, 'test-1');
+        expect(
+          provider.bills.first.name,
+          'Tagihan Internet',
+        );
+        expect(provider.isEmpty, isFalse);
+      } finally {
+        provider.dispose();
+      }
+    });
+
     test('menangani daftar tagihan kosong', () async {
       final provider = BillProvider(
         repository: FakeBillRepository(),
@@ -258,6 +300,28 @@ void main() {
       await provider.addBill(createBill());
 
       expect(notificationCount, greaterThan(0));
+
+      provider.dispose();
+    });
+
+    test('mengirim notifikasi ketika delete berhasil', () async {
+      final provider = BillProvider(
+        repository: FakeBillRepository(
+          initialBills: [createBill()],
+        ),
+      );
+
+      await Future<void>.delayed(Duration.zero);
+
+      var notificationCount = 0;
+      provider.addListener(() {
+        notificationCount++;
+      });
+
+      await provider.deleteBill('test-1');
+
+      expect(notificationCount, greaterThan(0));
+      expect(provider.bills, isEmpty);
 
       provider.dispose();
     });

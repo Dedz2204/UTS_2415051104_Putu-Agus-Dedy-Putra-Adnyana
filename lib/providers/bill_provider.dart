@@ -80,16 +80,16 @@ class BillProvider extends ChangeNotifier {
     try {
       _errorMessage = null;
 
-      // Pastikan perubahan di Supabase berhasil terlebih dahulu.
       await _repository.updateBill(updated);
 
-      // Perbarui state berdasarkan ID tagihan.
       final index = _bills.indexWhere(
         (bill) => bill.id == updated.id,
       );
 
       if (index == -1) {
-        throw StateError('Tagihan tidak ditemukan di state aplikasi.');
+        throw StateError(
+          'Tagihan tidak ditemukan di state aplikasi.',
+        );
       }
 
       _bills[index] = updated;
@@ -139,7 +139,6 @@ class BillProvider extends ChangeNotifier {
 
     if (!bill.isPaid) return;
 
-    // paidAt dibuat null agar tanggal pembayaran lama terhapus.
     final updatedBill = Bill(
       id: bill.id,
       name: bill.name,
@@ -159,12 +158,15 @@ class BillProvider extends ChangeNotifier {
     try {
       _errorMessage = null;
 
+      // Hapus data di database terlebih dahulu.
       await _repository.deleteBill(id);
 
+      // Perbarui state hanya setelah database berhasil menghapus.
       _bills = _bills.where((bill) => bill.id != id).toList();
 
       notifyListeners();
     } catch (error) {
+      // Data lokal tetap dipertahankan jika penghapusan gagal.
       _errorMessage = 'Gagal menghapus tagihan: $error';
       notifyListeners();
       rethrow;
