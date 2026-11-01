@@ -10,6 +10,7 @@ class BillProvider extends ChangeNotifier {
   }
 
   final BillRepository _repository;
+
   List<Bill> _bills = [];
 
   bool _isLoading = false;
@@ -29,10 +30,12 @@ class BillProvider extends ChangeNotifier {
 
   List<Bill> get paidBills {
     final result = _bills.where((bill) => bill.isPaid).toList();
+
     result.sort(
       (a, b) =>
           (b.paidAt ?? b.dueDate).compareTo(a.paidAt ?? a.dueDate),
     );
+
     return result;
   }
 
@@ -61,10 +64,8 @@ class BillProvider extends ChangeNotifier {
     try {
       _errorMessage = null;
 
-      // Simpan ke database dan ambil data dengan ID dari Supabase.
       final savedBill = await _repository.addBill(bill);
 
-      // Masukkan data hasil penyimpanan ke daftar aplikasi.
       _bills = [..._bills, savedBill];
 
       notifyListeners();
@@ -78,12 +79,20 @@ class BillProvider extends ChangeNotifier {
   Future<void> updateBill(Bill updated) async {
     try {
       _errorMessage = null;
+
+      // Pastikan perubahan di Supabase berhasil terlebih dahulu.
       await _repository.updateBill(updated);
 
-      final index = _bills.indexWhere((bill) => bill.id == updated.id);
-      if (index != -1) {
-        _bills[index] = updated;
+      // Perbarui state berdasarkan ID tagihan.
+      final index = _bills.indexWhere(
+        (bill) => bill.id == updated.id,
+      );
+
+      if (index == -1) {
+        throw StateError('Tagihan tidak ditemukan di state aplikasi.');
       }
+
+      _bills[index] = updated;
 
       notifyListeners();
     } catch (error) {
@@ -93,9 +102,63 @@ class BillProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> markPaid(String id) async {
+    final index = _bills.indexWhere((bill) => bill.id == id);
+
+    if (index == -1) {
+      throw StateError('Tagihan tidak ditemukan.');
+    }
+
+    final bill = _bills[index];
+
+    if (bill.isPaid) return;
+
+    final updatedBill = Bill(
+      id: bill.id,
+      name: bill.name,
+      providerName: bill.providerName,
+      amount: bill.amount,
+      category: bill.category,
+      dueDate: bill.dueDate,
+      isPaid: true,
+      paidAt: DateTime.now(),
+      note: bill.note,
+    );
+
+    await updateBill(updatedBill);
+  }
+
+  Future<void> markUnpaid(String id) async {
+    final index = _bills.indexWhere((bill) => bill.id == id);
+
+    if (index == -1) {
+      throw StateError('Tagihan tidak ditemukan.');
+    }
+
+    final bill = _bills[index];
+
+    if (!bill.isPaid) return;
+
+    // paidAt dibuat null agar tanggal pembayaran lama terhapus.
+    final updatedBill = Bill(
+      id: bill.id,
+      name: bill.name,
+      providerName: bill.providerName,
+      amount: bill.amount,
+      category: bill.category,
+      dueDate: bill.dueDate,
+      isPaid: false,
+      paidAt: null,
+      note: bill.note,
+    );
+
+    await updateBill(updatedBill);
+  }
+
   Future<void> deleteBill(String id) async {
     try {
       _errorMessage = null;
+
       await _repository.deleteBill(id);
 
       _bills = _bills.where((bill) => bill.id != id).toList();
@@ -106,18 +169,6 @@ class BillProvider extends ChangeNotifier {
       notifyListeners();
       rethrow;
     }
-  }
-
-  Future<void> markPaid(String id) async {
-    final index = _bills.indexWhere((bill) => bill.id == id);
-    if (index == -1) return;
-
-    await updateBill(
-      _bills[index].copyWith(
-        isPaid: true,
-        paidAt: DateTime.now(),
-      ),
-    );
   }
 
   void clearError() {

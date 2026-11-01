@@ -53,16 +53,33 @@ class SupabaseBillService {
   }
 
   Future<void> updateBill(Bill bill) async {
-    await _client.from('bills').update({
-      'bill_name': bill.name,
-      'provider_name': bill.providerName,
-      'amount': bill.amount,
-      'category': bill.category.name,
-      'due_date': bill.dueDate.toIso8601String().split('T').first,
-      'payment_status': bill.isPaid ? 'paid' : 'unpaid',
-      'paid_at': bill.paidAt?.toIso8601String(),
-      'note': bill.note,
-    }).eq('id', int.parse(bill.id)).eq('user_id', _userId);
+    final response = await _client
+        .from('bills')
+        .update({
+          'bill_name': bill.name,
+          'provider_name': bill.providerName,
+          'amount': bill.amount,
+          'category': bill.category.name,
+          'due_date': bill.dueDate.toIso8601String().split('T').first,
+          'payment_status': bill.isPaid ? 'paid' : 'unpaid',
+
+          // Status Unpaid akan mengosongkan paid_at.
+          'paid_at': bill.isPaid
+              ? (bill.paidAt ?? DateTime.now()).toIso8601String()
+              : null,
+
+          'note': bill.note,
+        })
+        .eq('id', int.parse(bill.id))
+        .eq('user_id', _userId)
+        .select()
+        .maybeSingle();
+
+    if (response == null) {
+      throw StateError(
+        'Tagihan tidak ditemukan atau tidak memiliki akses untuk diperbarui.',
+      );
+    }
   }
 
   Future<void> deleteBill(String id) async {

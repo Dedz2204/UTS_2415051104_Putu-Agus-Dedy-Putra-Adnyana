@@ -61,7 +61,11 @@ class _EditBillScreenState extends State<EditBillScreen> {
   }
 
   double? _parseAmount(String value) {
-    final normalized = value.trim().replaceAll('.', '').replaceAll(',', '.');
+    final normalized = value
+        .trim()
+        .replaceAll('.', '')
+        .replaceAll(',', '.');
+
     return double.tryParse(normalized);
   }
 
@@ -105,16 +109,16 @@ class _EditBillScreenState extends State<EditBillScreen> {
     }
   }
 
-  void _updateBill() {
-    if (_isSaving || !_formKey.currentState!.validate()) {
-      return;
-    }
+  Future<void> _updateBill() async {
+    if (_isSaving) return;
+
+    if (!_formKey.currentState!.validate()) return;
 
     FocusScope.of(context).unfocus();
 
     final amount = _parseAmount(_amountController.text);
 
-    if (amount == null || amount <= 0) {
+    if (amount == null || !amount.isFinite || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Masukkan jumlah tagihan yang valid.'),
@@ -131,26 +135,28 @@ class _EditBillScreenState extends State<EditBillScreen> {
     try {
       final note = _noteController.text.trim();
 
-      final updatedBill = widget.bill.copyWith(
+      // Membuat objek baru agar catatan lama dapat dikosongkan.
+      final updatedBill = Bill(
+        id: widget.bill.id,
         name: _nameController.text.trim(),
         providerName: _providerController.text.trim(),
         amount: amount,
         category: _category,
         dueDate: _dueDate,
+        isPaid: widget.bill.isPaid,
+        paidAt: widget.bill.paidAt,
         note: note.isEmpty ? null : note,
       );
 
-      widget.provider.updateBill(updatedBill);
+      await widget.provider.updateBill(updatedBill);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tagihan berhasil diperbarui.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (!mounted) return;
 
       Navigator.of(context).pop(true);
+
     } catch (error) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Gagal memperbarui tagihan: $error'),
@@ -272,7 +278,9 @@ class _EditBillScreenState extends State<EditBillScreen> {
                       validator: (value) {
                         final amount = _parseAmount(value ?? '');
 
-                        if (amount == null || amount <= 0) {
+                        if (amount == null ||
+                            !amount.isFinite ||
+                            amount <= 0) {
                           return 'Masukkan jumlah yang valid.';
                         }
                         return null;
@@ -295,20 +303,22 @@ class _EditBillScreenState extends State<EditBillScreen> {
                           child: Text(categoryLabel(category)),
                         );
                       }).toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            _category = value;
-                          });
-                        }
-                      },
+                      onChanged: _isSaving
+                          ? null
+                          : (value) {
+                              if (value != null) {
+                                setState(() {
+                                  _category = value;
+                                });
+                              }
+                            },
                     ),
                     const SizedBox(height: 20),
 
                     _buildLabel('Tanggal Jatuh Tempo'),
                     const SizedBox(height: 8),
                     InkWell(
-                      onTap: _selectDate,
+                      onTap: _isSaving ? null : _selectDate,
                       borderRadius: BorderRadius.circular(14),
                       child: InputDecorator(
                         decoration: _inputDecoration(

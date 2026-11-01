@@ -5,7 +5,7 @@ import '../providers/bill_provider.dart';
 import '../widgets/responsive_layout.dart';
 import 'edit_bill_screen.dart';
 
-class BillDetailScreen extends StatelessWidget {
+class BillDetailScreen extends StatefulWidget {
   final Bill bill;
   final BillProvider provider;
 
@@ -14,6 +14,14 @@ class BillDetailScreen extends StatelessWidget {
     required this.bill,
     required this.provider,
   });
+
+  @override
+  State<BillDetailScreen> createState() => _BillDetailScreenState();
+}
+
+class _BillDetailScreenState extends State<BillDetailScreen> {
+  bool _isUpdatingPayment = false;
+  bool _isDeleting = false;
 
   String _formatCurrency(double amount) {
     final value = amount.toStringAsFixed(0);
@@ -38,20 +46,45 @@ class BillDetailScreen extends StatelessWidget {
   }
 
   Future<void> _editBill(BuildContext context) async {
-    await Navigator.push(
+    final updated = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => EditBillScreen(bill: bill, provider: provider),
+        builder: (_) => EditBillScreen(
+          bill: widget.bill,
+          provider: widget.provider,
+        ),
       ),
     );
+
+    if (!context.mounted) return;
+
+    if (updated == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tagihan berhasil diperbarui.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
-  Future<void> _markAsPaid(BuildContext context) async {
+  Future<void> _changePaymentStatus(
+    BuildContext context, {
+    required bool markAsPaid,
+  }) async {
+    if (_isUpdatingPayment) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Konfirmasi Pembayaran'),
-        content: const Text('Tandai tagihan ini sebagai sudah dibayar?'),
+        title: Text(
+          markAsPaid ? 'Konfirmasi Pembayaran' : 'Batalkan Status Pembayaran',
+        ),
+        content: Text(
+          markAsPaid
+              ? 'Tandai tagihan ini sebagai sudah dibayar?'
+              : 'Ubah status tagihan ini menjadi belum dibayar?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -59,41 +92,65 @@ class BillDetailScreen extends StatelessWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Ya, Sudah Dibayar'),
+            child: Text(markAsPaid ? 'Ya, Sudah Dibayar' : 'Ya, Belum Dibayar'),
           ),
         ],
       ),
     );
 
-    if (confirmed != true || !context.mounted) {
-      return;
-    }
+    if (confirmed != true || !context.mounted) return;
+
+    setState(() {
+      _isUpdatingPayment = true;
+    });
 
     try {
-      provider.markPaid(bill.id);
+      if (markAsPaid) {
+        await widget.provider.markPaid(widget.bill.id);
+      } else {
+        await widget.provider.markUnpaid(widget.bill.id);
+      }
 
       if (!context.mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tagihan ditandai sudah dibayar.')),
+        SnackBar(
+          content: Text(
+            markAsPaid
+                ? 'Tagihan berhasil ditandai sudah dibayar.'
+                : 'Status tagihan berhasil diubah menjadi belum dibayar.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
-
-      Navigator.pop(context);
     } catch (error) {
       if (!context.mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memperbarui pembayaran: $error')),
+        SnackBar(
+          content: Text('Gagal memperbarui pembayaran: $error'),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingPayment = false;
+        });
+      }
     }
   }
 
   Future<void> _deleteBill(BuildContext context) async {
+    if (_isDeleting) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Hapus Tagihan'),
-        content: Text('Yakin ingin menghapus "${bill.name}"?'),
+        content: Text(
+          'Yakin ingin menghapus "${widget.bill.name}"?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -110,17 +167,22 @@ class BillDetailScreen extends StatelessWidget {
       ),
     );
 
-    if (confirmed != true || !context.mounted) {
-      return;
-    }
+    if (confirmed != true || !context.mounted) return;
+
+    setState(() {
+      _isDeleting = true;
+    });
 
     try {
-      provider.deleteBill(bill.id);
+      await widget.provider.deleteBill(widget.bill.id);
 
       if (!context.mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tagihan berhasil dihapus.')),
+        const SnackBar(
+          content: Text('Tagihan berhasil dihapus.'),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
 
       Navigator.pop(context);
@@ -128,8 +190,17 @@ class BillDetailScreen extends StatelessWidget {
       if (!context.mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal menghapus tagihan: $error')),
+        SnackBar(
+          content: Text('Gagal menghapus tagihan: $error'),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDeleting = false;
+        });
+      }
     }
   }
 
@@ -141,26 +212,28 @@ class BillDetailScreen extends StatelessWidget {
         actions: [
           IconButton(
             tooltip: 'Edit tagihan',
-            onPressed: () => _editBill(context),
+            onPressed: _isDeleting ? null : () => _editBill(context),
             icon: const Icon(Icons.edit_outlined),
           ),
           IconButton(
             tooltip: 'Hapus tagihan',
-            onPressed: () => _deleteBill(context),
+            onPressed: _isDeleting ? null : () => _deleteBill(context),
             icon: const Icon(Icons.delete_outline_rounded),
           ),
           const SizedBox(width: 8),
         ],
       ),
       body: AnimatedBuilder(
-        animation: provider,
+        animation: widget.provider,
         builder: (context, _) {
-          final currentBill = provider.bills
-              .where((item) => item.id == bill.id)
+          final currentBill = widget.provider.bills
+              .where((item) => item.id == widget.bill.id)
               .firstOrNull;
 
           if (currentBill == null) {
-            return const Center(child: Text('Tagihan sudah tidak tersedia.'));
+            return const Center(
+              child: Text('Tagihan sudah tidak tersedia.'),
+            );
           }
 
           return ResponsiveLayout(
@@ -219,7 +292,10 @@ class BillDetailScreen extends StatelessWidget {
                 const SizedBox(height: 24),
                 const Text(
                   'Informasi Tagihan',
-                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 _DetailItem(
@@ -251,26 +327,54 @@ class BillDetailScreen extends StatelessWidget {
                 _DetailItem(
                   icon: Icons.notes_outlined,
                   title: 'Catatan',
-                  value:
-                      currentBill.note == null ||
+                  value: currentBill.note == null ||
                           currentBill.note!.trim().isEmpty
                       ? '-'
                       : currentBill.note!,
                 ),
                 const SizedBox(height: 24),
-                if (!currentBill.isPaid)
-                  FilledButton.icon(
-                    onPressed: () => _markAsPaid(context),
-                    icon: const Icon(Icons.check_circle_outline),
-                    label: const Text('Tandai Sudah Dibayar'),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                      backgroundColor: const Color(0xFF16A34A),
-                    ),
+
+                // Tombol perubahan status pembayaran.
+                FilledButton.icon(
+                  onPressed: _isUpdatingPayment || _isDeleting
+                      ? null
+                      : () => _changePaymentStatus(
+                            context,
+                            markAsPaid: !currentBill.isPaid,
+                          ),
+                  icon: _isUpdatingPayment
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Icon(
+                          currentBill.isPaid
+                              ? Icons.undo_rounded
+                              : Icons.check_circle_outline,
+                        ),
+                  label: Text(
+                    _isUpdatingPayment
+                        ? 'Memperbarui...'
+                        : currentBill.isPaid
+                            ? 'Kembalikan ke Belum Dibayar'
+                            : 'Tandai Sudah Dibayar',
                   ),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                    backgroundColor: currentBill.isPaid
+                        ? const Color(0xFFF59E0B)
+                        : const Color(0xFF16A34A),
+                  ),
+                ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
-                  onPressed: () => _editBill(context),
+                  onPressed: _isDeleting || _isUpdatingPayment
+                      ? null
+                      : () => _editBill(context),
                   icon: const Icon(Icons.edit_outlined),
                   label: const Text('Edit Tagihan'),
                   style: OutlinedButton.styleFrom(
@@ -305,12 +409,17 @@ class _DetailItem extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Theme.of(context).colorScheme.primary),
+          Icon(
+            icon,
+            color: Theme.of(context).colorScheme.primary,
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
