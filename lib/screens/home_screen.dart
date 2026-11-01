@@ -122,7 +122,10 @@ class HomeScreen extends StatelessWidget {
 
                     const SizedBox(height: 14),
 
-                    _buildQuickActions(isMobile: isMobile),
+                    _buildQuickActions(
+                      context,
+                      isMobile: isMobile,
+                    ),
 
                     const SizedBox(height: 28),
 
@@ -655,14 +658,18 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickActions({required bool isMobile}) {
+  // Navigasi aksi cepat.
+  Widget _buildQuickActions(
+    BuildContext context, {
+    required bool isMobile,
+  }) {
     final actions = [
       _QuickAction(
         title: 'Tambah Tagihan',
         subtitle: 'Catat tagihan baru',
         icon: Icons.add_card_rounded,
         color: const Color(0xFF2563EB),
-        onTap: () => _openAddBillFromContext(),
+        onTap: () => _openAddBill(context),
       ),
       _QuickAction(
         title: 'Daftar Tagihan',
@@ -701,10 +708,6 @@ class HomeScreen extends StatelessWidget {
         return _QuickActionCard(action: actions[index]);
       },
     );
-  }
-
-  void _openAddBillFromContext() {
-    onNavigate(1);
   }
 
   String _formatRupiah(double amount) {

@@ -37,18 +37,25 @@ String _monthName(int month) {
 class BillCard extends StatelessWidget {
   final Bill bill;
   final VoidCallback? onTap;
+  final VoidCallback? onEdit;
 
-  const BillCard({super.key, required this.bill, this.onTap});
+  const BillCard({
+    super.key,
+    required this.bill,
+    this.onTap,
+    this.onEdit,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final overdue = !bill.isPaid && bill.dueDate.isBefore(DateTime.now());
+    final overdue =
+        !bill.isPaid && bill.dueDate.isBefore(DateTime.now());
 
     final color = bill.isPaid
         ? Colors.green
         : overdue
-        ? Colors.red
-        : Colors.orange;
+            ? Colors.red
+            : Colors.orange;
 
     final icon = switch (bill.category) {
       BillCategory.listrik => Icons.bolt,
@@ -68,28 +75,39 @@ class BillCard extends StatelessWidget {
       ),
       child: ListTile(
         onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 8,
+        ),
         leading: CircleAvatar(
           backgroundColor: const Color(0xFFEFF6FF),
-          child: Icon(icon, color: const Color(0xFF2563EB)),
+          child: Icon(
+            icon,
+            color: const Color(0xFF2563EB),
+          ),
         ),
         title: Text(
           bill.name,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 6),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('${bill.providerName} • ${formatDate(bill.dueDate)}'),
+              Text(
+                '${bill.providerName} • ${formatDate(bill.dueDate)}',
+              ),
               const SizedBox(height: 5),
               Text(
                 bill.isPaid
                     ? 'Sudah dibayar'
                     : overdue
-                    ? 'Terlambat'
-                    : 'Belum dibayar',
+                        ? 'Terlambat'
+                        : 'Belum dibayar',
                 style: TextStyle(
                   color: color,
                   fontSize: 11,
@@ -99,9 +117,56 @@ class BillCard extends StatelessWidget {
             ],
           ),
         ),
-        trailing: Text(
-          formatRupiah(bill.amount),
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              formatRupiah(bill.amount),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+            PopupMenuButton<String>(
+              tooltip: 'Menu tagihan',
+              icon: const Icon(Icons.more_vert_rounded),
+              onSelected: (value) {
+                if (value == 'detail') {
+                  onTap?.call();
+                } else if (value == 'edit') {
+                  onEdit?.call();
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem<String>(
+                  value: 'detail',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.visibility_outlined,
+                        size: 20,
+                      ),
+                      SizedBox(width: 10),
+                      Text('Lihat Detail'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.edit_outlined,
+                        size: 20,
+                      ),
+                      SizedBox(width: 10),
+                      Text('Edit Tagihan'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

@@ -6,6 +6,7 @@ import '../widgets/bill_card.dart';
 import '../widgets/responsive_layout.dart';
 import 'add_bill_screen.dart';
 import 'bill_detail_screen.dart';
+import 'edit_bill_screen.dart';
 
 class BillListScreen extends StatefulWidget {
   final BillProvider provider;
@@ -25,7 +26,8 @@ class _BillListScreenState extends State<BillListScreen> {
   static const Color _dark = Color(0xFF0F172A);
   static const Color _muted = Color(0xFF64748B);
 
-  final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController =
+      TextEditingController();
 
   String _query = '';
   String _filter = 'Semua';
@@ -49,7 +51,9 @@ class _BillListScreenState extends State<BillListScreen> {
       final matchesQuery =
           bill.name.toLowerCase().contains(normalizedQuery) ||
           bill.providerName.toLowerCase().contains(normalizedQuery) ||
-          bill.category.toString().toLowerCase().contains(normalizedQuery);
+          bill.category.toString().toLowerCase().contains(
+                normalizedQuery,
+              );
 
       final matchesStatus = switch (_filter) {
         'Belum Dibayar' => !bill.isPaid,
@@ -103,8 +107,10 @@ class _BillListScreenState extends State<BillListScreen> {
         builder: (context, _) {
           final allBills = widget.provider.bills;
           final filteredBills = _getFilteredBills(allBills);
-          final unpaidCount = allBills.where((bill) => !bill.isPaid).length;
-          final paidCount = allBills.where((bill) => bill.isPaid).length;
+          final unpaidCount =
+              allBills.where((bill) => !bill.isPaid).length;
+          final paidCount =
+              allBills.where((bill) => bill.isPaid).length;
 
           return ResponsiveLayout(
             child: LayoutBuilder(
@@ -115,24 +121,17 @@ class _BillListScreenState extends State<BillListScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: 8),
-
                     _buildOverview(
                       total: allBills.length,
                       unpaid: unpaidCount,
                       paid: paidCount,
                       isMobile: isMobile,
                     ),
-
                     const SizedBox(height: 22),
-
                     _buildSearchField(),
-
                     const SizedBox(height: 14),
-
                     _buildFilters(),
-
                     const SizedBox(height: 22),
-
                     Row(
                       children: [
                         const Expanded(
@@ -165,9 +164,7 @@ class _BillListScreenState extends State<BillListScreen> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 14),
-
                     Expanded(
                       child: filteredBills.isEmpty
                           ? _EmptySearchResult(
@@ -177,7 +174,9 @@ class _BillListScreenState extends State<BillListScreen> {
                               onAdd: _openAddBill,
                             )
                           : ListView.separated(
-                              padding: const EdgeInsets.only(bottom: 100),
+                              padding: const EdgeInsets.only(
+                                bottom: 100,
+                              ),
                               itemCount: filteredBills.length,
                               separatorBuilder: (_, _) =>
                                   const SizedBox(height: 12),
@@ -186,7 +185,10 @@ class _BillListScreenState extends State<BillListScreen> {
 
                                 return BillCard(
                                   bill: bill,
-                                  onTap: () => _openBillDetail(bill),
+                                  onTap: () =>
+                                      _openBillDetail(bill),
+                                  onEdit: () =>
+                                      _openEditBill(bill),
                                 );
                               },
                             ),
@@ -323,7 +325,9 @@ class _BillListScreenState extends State<BillListScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE7ECF3)),
+        border: Border.all(
+          color: const Color(0xFFE7ECF3),
+        ),
       ),
       child: TextField(
         controller: _searchController,
@@ -423,7 +427,8 @@ class _BillListScreenState extends State<BillListScreen> {
                 horizontal: 8,
                 vertical: 9,
               ),
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              materialTapTargetSize:
+                  MaterialTapTargetSize.shrinkWrap,
             ),
           );
         }).toList(),
@@ -443,7 +448,9 @@ class _BillListScreenState extends State<BillListScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => AddBillScreen(provider: widget.provider),
+        builder: (_) => AddBillScreen(
+          provider: widget.provider,
+        ),
       ),
     );
   }
@@ -467,6 +474,29 @@ class _BillListScreenState extends State<BillListScreen> {
           content: Text('Tagihan berhasil dihapus.'),
           behavior: SnackBarBehavior.floating,
           backgroundColor: Color(0xFF16A34A),
+        ),
+      );
+    }
+  }
+
+  Future<void> _openEditBill(Bill bill) async {
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditBillScreen(
+          bill: bill,
+          provider: widget.provider,
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (updated == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tagihan berhasil diperbarui.'),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -616,7 +646,9 @@ class _EmptySearchResult extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: onReset,
                   icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Reset Pencarian dan Filter'),
+                  label: const Text(
+                    'Reset Pencarian dan Filter',
+                  ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF2563EB),
                     side: const BorderSide(

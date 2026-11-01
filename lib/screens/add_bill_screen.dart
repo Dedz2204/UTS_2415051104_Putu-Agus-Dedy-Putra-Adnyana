@@ -18,6 +18,7 @@ class AddBillScreen extends StatefulWidget {
 
 class _AddBillScreenState extends State<AddBillScreen> {
   final _formKey = GlobalKey<FormState>();
+
   final _nameController = TextEditingController();
   final _providerController = TextEditingController();
   final _amountController = TextEditingController();
@@ -25,53 +26,24 @@ class _AddBillScreenState extends State<AddBillScreen> {
 
   BillCategory _category = BillCategory.listrik;
   DateTime _dueDate = DateTime.now().add(const Duration(days: 1));
+
   bool _isSaving = false;
 
-  List<BillCategory> get _categories => BillCategory.values;
+  double _parseAmount(String value) {
+    final cleanedValue = value
+        .replaceAll('.', '')
+        .replaceAll(',', '.')
+        .trim();
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _providerController.dispose();
-    _amountController.dispose();
-    _noteController.dispose();
-    super.dispose();
-  }
-
-  double? _parseAmount(String value) {
-    final normalized = value.trim().replaceAll('.', '').replaceAll(',', '.');
-    return double.tryParse(normalized);
-  }
-
-  String _formatDate(DateTime date) {
-    const months = [
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember',
-    ];
-
-    return '${date.day} ${months[date.month - 1]} ${date.year}';
+    return double.tryParse(cleanedValue) ?? 0;
   }
 
   Future<void> _selectDate() async {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
     final selectedDate = await showDatePicker(
       context: context,
-      initialDate: _dueDate.isBefore(today) ? today : _dueDate,
-      firstDate: today,
+      initialDate: _dueDate,
+      firstDate: DateTime.now(),
       lastDate: DateTime(2100),
-      helpText: 'Pilih tanggal jatuh tempo',
       cancelText: 'Batal',
       confirmText: 'Pilih',
     );
@@ -84,49 +56,42 @@ class _AddBillScreenState extends State<AddBillScreen> {
   }
 
   Future<void> _saveBill() async {
-    if (_isSaving) return;
-
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    FocusScope.of(context).unfocus();
-
     final amount = _parseAmount(_amountController.text);
 
-    if (amount == null || !amount.isFinite || amount <= 0) {
+    if (amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Jumlah tagihan harus berupa angka lebih dari nol.'),
-          behavior: SnackBarBehavior.floating,
+          content: Text('Jumlah tagihan harus lebih dari 0.'),
+          backgroundColor: Colors.red,
         ),
       );
       return;
     }
+
+    FocusScope.of(context).unfocus();
 
     setState(() {
       _isSaving = true;
     });
 
     try {
-      final note = _noteController.text.trim();
-
       final bill = Bill(
-        // ID sementara. ID sebenarnya akan dibuat oleh database.
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        id: '',
         name: _nameController.text.trim(),
         providerName: _providerController.text.trim(),
         amount: amount,
         category: _category,
-        dueDate: DateTime(
-          _dueDate.year,
-          _dueDate.month,
-          _dueDate.day,
-        ),
-        note: note.isEmpty ? null : note,
+        dueDate: _dueDate,
+        isPaid: false,
+        note: _noteController.text.trim().isEmpty
+            ? null
+            : _noteController.text.trim(),
       );
 
-      // Tunggu sampai proses penyimpanan selesai.
       await widget.provider.addBill(bill);
 
       if (!mounted) return;
@@ -134,19 +99,17 @@ class _AddBillScreenState extends State<AddBillScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Tagihan berhasil ditambahkan.'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Color(0xFF15803D),
+          backgroundColor: Colors.green,
         ),
       );
 
-      Navigator.of(context).pop(true);
+      Navigator.pop(context, true);
     } catch (error) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Gagal menambahkan tagihan: $error'),
-          behavior: SnackBarBehavior.floating,
           backgroundColor: Colors.red,
         ),
       );
@@ -160,296 +123,187 @@ class _AddBillScreenState extends State<AddBillScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+  void dispose() {
+    _nameController.dispose();
+    _providerController.dispose();
+    _amountController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
-        title: const Text(
-          'Tambah Tagihan',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
+        title: const Text('Tambah Tagihan'),
         backgroundColor: const Color(0xFFF5F7FB),
         foregroundColor: const Color(0xFF0F172A),
-        elevation: 0,
       ),
       body: ResponsiveLayout(
         maxContentWidth: 760,
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-            children: [
-              Container(
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: const Color(0xFFE2E8F0),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Informasi Tagihan',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Informasi Tagihan',
-                      style: TextStyle(
-                        color: Color(0xFF0F172A),
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 7),
-                    Text(
-                      'Lengkapi informasi berikut agar pembayaranmu '
-                      'lebih mudah dipantau.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: const Color(0xFF64748B),
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 26),
+                const SizedBox(height: 20),
 
-                    _buildLabel('Nama Tagihan'),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _nameController,
-                      textCapitalization: TextCapitalization.sentences,
-                      textInputAction: TextInputAction.next,
-                      decoration: _inputDecoration(
-                        hint: 'Contoh: Tagihan Wi-Fi',
-                        icon: Icons.receipt_long_outlined,
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Nama tagihan wajib diisi.';
-                        }
-                        return null;
-                      },
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nama Tagihan',
+                    hintText: 'Contoh: Tagihan Listrik',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.receipt_long),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Nama tagihan wajib diisi.';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _providerController,
+                  decoration: const InputDecoration(
+                    labelText: 'Penyedia Tagihan',
+                    hintText: 'Contoh: PLN, Telkomsel, PDAM',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.business),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Penyedia tagihan wajib diisi.';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _amountController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Jumlah Tagihan',
+                    hintText: 'Contoh: 150000',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.payments_outlined),
+                    prefixText: 'Rp ',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Jumlah tagihan wajib diisi.';
+                    }
+
+                    if (_parseAmount(value) <= 0) {
+                      return 'Jumlah tagihan harus lebih dari 0.';
+                    }
+
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                DropdownButtonFormField<BillCategory>(
+                  initialValue: _category,
+                  decoration: const InputDecoration(
+                    labelText: 'Kategori Tagihan',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.category_outlined),
+                  ),
+                  items: BillCategory.values.map((category) {
+                    return DropdownMenuItem<BillCategory>(
+                      value: category,
+                      child: Text(categoryLabel(category)),
+                    );
+                  }).toList(),
+                  onChanged: _isSaving
+                      ? null
+                      : (value) {
+                          if (value != null) {
+                            setState(() {
+                              _category = value;
+                            });
+                          }
+                        },
+                ),
+                const SizedBox(height: 16),
+
+                InkWell(
+                  onTap: _isSaving ? null : _selectDate,
+                  borderRadius: BorderRadius.circular(8),
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Tanggal Jatuh Tempo',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.calendar_month),
                     ),
-                    const SizedBox(height: 20),
-
-                    _buildLabel('Penyedia Tagihan'),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _providerController,
-                      textCapitalization: TextCapitalization.words,
-                      textInputAction: TextInputAction.next,
-                      decoration: _inputDecoration(
-                        hint: 'Contoh: PLN atau penyedia internet',
-                        icon: Icons.business_outlined,
-                      ),
+                    child: Text(
+                      '${_dueDate.day.toString().padLeft(2, '0')}/'
+                      '${_dueDate.month.toString().padLeft(2, '0')}/'
+                      '${_dueDate.year}',
                     ),
-                    const SizedBox(height: 20),
+                  ),
+                ),
+                const SizedBox(height: 16),
 
-                    _buildLabel('Jumlah Tagihan'),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _amountController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      textInputAction: TextInputAction.next,
-                      decoration: _inputDecoration(
-                        hint: 'Contoh: 150000',
-                        icon: Icons.payments_outlined,
-                        prefixText: 'Rp ',
-                      ),
-                      validator: (value) {
-                        final amount = _parseAmount(value ?? '');
+                TextFormField(
+                  controller: _noteController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Catatan (Opsional)',
+                    hintText: 'Tambahkan catatan jika diperlukan',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.notes),
+                    alignLabelWithHint: true,
+                  ),
+                ),
+                const SizedBox(height: 28),
 
-                        if (amount == null ||
-                            !amount.isFinite ||
-                            amount <= 0) {
-                          return 'Masukkan jumlah yang valid.';
-                        }
-                        return null;
-                      },
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _isSaving ? null : _saveBill,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    const SizedBox(height: 20),
-
-                    _buildLabel('Kategori'),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<BillCategory>(
-                      initialValue: _category,
-                      isExpanded: true,
-                      decoration: _inputDecoration(
-                        hint: 'Pilih kategori',
-                        icon: Icons.category_outlined,
-                      ),
-                      items: _categories.map((category) {
-                        return DropdownMenuItem<BillCategory>(
-                          value: category,
-                          child: Text(categoryLabel(category)),
-                        );
-                      }).toList(),
-                      onChanged: _isSaving
-                          ? null
-                          : (value) {
-                              if (value != null) {
-                                setState(() {
-                                  _category = value;
-                                });
-                              }
-                            },
-                    ),
-                    const SizedBox(height: 20),
-
-                    _buildLabel('Tanggal Jatuh Tempo'),
-                    const SizedBox(height: 8),
-                    InkWell(
-                      onTap: _isSaving ? null : _selectDate,
-                      borderRadius: BorderRadius.circular(14),
-                      child: InputDecorator(
-                        decoration: _inputDecoration(
-                          hint: 'Pilih tanggal',
-                          icon: Icons.calendar_month_outlined,
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                _formatDate(_dueDate),
-                                style: const TextStyle(
-                                  color: Color(0xFF0F172A),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
                             ),
-                            const Icon(
-                              Icons.edit_calendar_outlined,
-                              color: Color(0xFF2563EB),
+                          )
+                        : const Text(
+                            'Simpan Tagihan',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    _buildLabel('Catatan (Opsional)'),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _noteController,
-                      minLines: 3,
-                      maxLines: 5,
-                      textCapitalization: TextCapitalization.sentences,
-                      decoration: _inputDecoration(
-                        hint: 'Tambahkan catatan jika diperlukan',
-                        icon: Icons.notes_rounded,
-                        alignLabelWithHint: true,
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: _isSaving ? null : _saveBill,
-                        icon: _isSaving
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.save_rounded),
-                        label: Text(
-                          _isSaving ? 'Menyimpan...' : 'Simpan Tagihan',
-                        ),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size.fromHeight(52),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
                           ),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Pastikan jumlah dan tanggal jatuh tempo sudah benar.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 12,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        color: Color(0xFF0F172A),
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration({
-    required String hint,
-    required IconData icon,
-    String? prefixText,
-    bool alignLabelWithHint = false,
-  }) {
-    return InputDecoration(
-      hintText: hint,
-      prefixText: prefixText,
-      prefixIcon: Icon(
-        icon,
-        color: const Color(0xFF64748B),
-      ),
-      alignLabelWithHint: alignLabelWithHint,
-      filled: true,
-      fillColor: const Color(0xFFFAFBFE),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 16,
-      ),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Color(0xFFE2E8F0),
-        ),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Color(0xFFE2E8F0),
-        ),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Color(0xFF2563EB),
-          width: 1.5,
-        ),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Colors.red,
-        ),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Colors.red,
-          width: 1.5,
         ),
       ),
     );

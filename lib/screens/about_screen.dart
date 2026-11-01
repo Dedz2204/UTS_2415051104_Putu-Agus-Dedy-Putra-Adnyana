@@ -163,7 +163,6 @@ class _AboutScreenState extends State<AboutScreen> {
 
   bool get _hasProfilePhoto {
     final path = _photoPath;
-
     return path != null && File(path).existsSync();
   }
 
@@ -187,7 +186,7 @@ class _AboutScreenState extends State<AboutScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
                 children: [
-                  // Informasi profil pengguna.
+                  // Profil pengguna.
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
@@ -256,7 +255,7 @@ class _AboutScreenState extends State<AboutScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Informasi aplikasi tanpa logo.
+                  // Informasi aplikasi.
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
@@ -277,7 +276,8 @@ class _AboutScreenState extends State<AboutScreen> {
                         SizedBox(height: 10),
                         Text(
                           'Aplikasi pencatatan dan pengingat tagihan '
-                          'untuk membantu mengelola jadwal pembayaran.',
+                          'untuk membantu pengguna mengelola jadwal '
+                          'pembayaran agar lebih teratur.',
                           style: TextStyle(
                             color: Colors.white,
                             height: 1.6,
@@ -289,14 +289,8 @@ class _AboutScreenState extends State<AboutScreen> {
 
                   const SizedBox(height: 28),
 
-                  const Text(
-                    'Fitur Aplikasi',
-                    style: TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
-                    ),
-                  ),
+                  // Fitur aplikasi.
+                  const _SectionTitle(title: 'Fitur Aplikasi'),
                   const SizedBox(height: 14),
 
                   const _FeatureTile(
@@ -317,7 +311,7 @@ class _AboutScreenState extends State<AboutScreen> {
                     title: 'Riwayat Pembayaran',
                     description:
                         'Lihat tagihan yang telah ditandai lunas '
-                        'dan total pembayarannya.',
+                        'beserta informasi pembayarannya.',
                   ),
                   const _FeatureTile(
                     icon: Icons.devices_outlined,
@@ -327,6 +321,10 @@ class _AboutScreenState extends State<AboutScreen> {
                   ),
 
                   const SizedBox(height: 16),
+
+                  // Informasi pengembang.
+                  const _SectionTitle(title: 'Informasi Pengembang'),
+                  const SizedBox(height: 14),
 
                   Container(
                     padding: const EdgeInsets.all(20),
@@ -339,6 +337,96 @@ class _AboutScreenState extends State<AboutScreen> {
                     ),
                     child: const Column(
                       children: [
+                        _InfoTile(
+                          icon: Icons.person_outline_rounded,
+                          title: 'Nama',
+                          value: 'Putu Agus Dedy Putra Adnyana',
+                        ),
+                        Divider(height: 24),
+                        _InfoTile(
+                          icon: Icons.badge_outlined,
+                          title: 'NIM',
+                          value: '2415051104',
+                        ),
+                        Divider(height: 24),
+                        _InfoTile(
+                          icon: Icons.school_outlined,
+                          title: 'Program Studi',
+                          value: 'Pendidikan Teknik Informatika',
+                        ),
+                        Divider(height: 24),
+                        _InfoTile(
+                          icon: Icons.account_balance_outlined,
+                          title: 'Universitas',
+                          value: 'Universitas Pendidikan Ganesha',
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Teknologi yang digunakan.
+                  const _SectionTitle(
+                    title: 'Teknologi yang Digunakan',
+                  ),
+                  const SizedBox(height: 14),
+
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: const Column(
+                      children: [
+                        _TechnologyTile(
+                          icon: Icons.flutter_dash,
+                          title: 'Flutter & Dart',
+                          description:
+                              'Pengembangan aplikasi dan antarmuka.',
+                        ),
+                        SizedBox(height: 18),
+                        _TechnologyTile(
+                          icon: Icons.storage_outlined,
+                          title: 'Supabase',
+                          description:
+                              'Penyimpanan dan pengelolaan data tagihan.',
+                        ),
+                        SizedBox(height: 18),
+                        _TechnologyTile(
+                          icon: Icons.cloud_outlined,
+                          title: 'REST API',
+                          description:
+                              'Mengambil informasi hari libur nasional.',
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Versi aplikasi.
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: const Column(
+                      children: [
+                        Icon(
+                          Icons.receipt_long_rounded,
+                          color: Color(0xFF2563EB),
+                          size: 32,
+                        ),
+                        SizedBox(height: 10),
                         Text(
                           'ExpenseTask',
                           style: TextStyle(
@@ -356,11 +444,13 @@ class _AboutScreenState extends State<AboutScreen> {
                         ),
                         SizedBox(height: 8),
                         Text(
-                          'Dikembangkan sebagai proyek UTS.',
+                          'Dikembangkan sebagai proyek Ujian Tengah '
+                          'Semester.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Color(0xFF64748B),
                             fontSize: 12,
+                            height: 1.5,
                           ),
                         ),
                       ],
@@ -369,6 +459,130 @@ class _AboutScreenState extends State<AboutScreen> {
                 ],
               ),
             ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String title;
+
+  const _SectionTitle({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 19,
+        fontWeight: FontWeight.w800,
+        color: Color(0xFF0F172A),
+      ),
+    );
+  }
+}
+
+class _InfoTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+
+  const _InfoTile({
+    required this.icon,
+    required this.title,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          color: const Color(0xFF2563EB),
+          size: 23,
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TechnologyTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+
+  const _TechnologyTile({
+    required this.icon,
+    required this.title,
+    required this.description,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEFF6FF),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            icon,
+            color: const Color(0xFF2563EB),
+            size: 23,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                description,
+                style: const TextStyle(
+                  color: Color(0xFF64748B),
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
