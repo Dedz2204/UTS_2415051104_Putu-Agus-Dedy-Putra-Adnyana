@@ -32,18 +32,24 @@ class SupabaseBillService {
     return response.map((json) => Bill.fromJson(json)).toList();
   }
 
-  Future<void> addBill(Bill bill) async {
-    await _client.from('bills').insert({
-      'bill_name': bill.name,
-      'provider_name': bill.providerName,
-      'amount': bill.amount,
-      'category': bill.category.name,
-      'due_date': bill.dueDate.toIso8601String().split('T').first,
-      'payment_status': bill.isPaid ? 'paid' : 'unpaid',
-      'paid_at': bill.paidAt?.toIso8601String(),
-      'note': bill.note,
-      'user_id': _userId,
-    });
+  Future<Bill> addBill(Bill bill) async {
+    final response = await _client
+        .from('bills')
+        .insert({
+          'bill_name': bill.name,
+          'provider_name': bill.providerName,
+          'amount': bill.amount,
+          'category': bill.category.name,
+          'due_date': bill.dueDate.toIso8601String().split('T').first,
+          'payment_status': bill.isPaid ? 'paid' : 'unpaid',
+          'paid_at': bill.paidAt?.toIso8601String(),
+          'note': bill.note,
+          'user_id': _userId,
+        })
+        .select()
+        .single();
+
+    return Bill.fromJson(response);
   }
 
   Future<void> updateBill(Bill bill) async {

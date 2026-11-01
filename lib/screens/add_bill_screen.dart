@@ -83,8 +83,10 @@ class _AddBillScreenState extends State<AddBillScreen> {
     }
   }
 
-  void _saveBill() {
-    if (_isSaving || !_formKey.currentState!.validate()) {
+  Future<void> _saveBill() async {
+    if (_isSaving) return;
+
+    if (!_formKey.currentState!.validate()) {
       return;
     }
 
@@ -92,10 +94,10 @@ class _AddBillScreenState extends State<AddBillScreen> {
 
     final amount = _parseAmount(_amountController.text);
 
-    if (amount == null || amount <= 0) {
+    if (amount == null || !amount.isFinite || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Jumlah tagihan tidak valid.'),
+          content: Text('Jumlah tagihan harus berupa angka lebih dari nol.'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -110,31 +112,42 @@ class _AddBillScreenState extends State<AddBillScreen> {
       final note = _noteController.text.trim();
 
       final bill = Bill(
+        // ID sementara. ID sebenarnya akan dibuat oleh database.
         id: DateTime.now().microsecondsSinceEpoch.toString(),
         name: _nameController.text.trim(),
         providerName: _providerController.text.trim(),
         amount: amount,
         category: _category,
-        dueDate: _dueDate,
+        dueDate: DateTime(
+          _dueDate.year,
+          _dueDate.month,
+          _dueDate.day,
+        ),
         note: note.isEmpty ? null : note,
       );
 
-      // Sesuai implementasi BillProvider yang mengembalikan void.
-      widget.provider.addBill(bill);
+      // Tunggu sampai proses penyimpanan selesai.
+      await widget.provider.addBill(bill);
+
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Tagihan berhasil ditambahkan.'),
           behavior: SnackBarBehavior.floating,
+          backgroundColor: Color(0xFF15803D),
         ),
       );
 
       Navigator.of(context).pop(true);
     } catch (error) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Gagal menambahkan tagihan: $error'),
           behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red,
         ),
       );
     } finally {
@@ -180,7 +193,6 @@ class _AddBillScreenState extends State<AddBillScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Logo di bagian atas telah dihilangkan.
                     const Text(
                       'Informasi Tagihan',
                       style: TextStyle(
@@ -229,12 +241,6 @@ class _AddBillScreenState extends State<AddBillScreen> {
                         hint: 'Contoh: PLN atau penyedia internet',
                         icon: Icons.business_outlined,
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Penyedia tagihan wajib diisi.';
-                        }
-                        return null;
-                      },
                     ),
                     const SizedBox(height: 20),
 
@@ -254,7 +260,9 @@ class _AddBillScreenState extends State<AddBillScreen> {
                       validator: (value) {
                         final amount = _parseAmount(value ?? '');
 
-                        if (amount == null || amount <= 0) {
+                        if (amount == null ||
+                            !amount.isFinite ||
+                            amount <= 0) {
                           return 'Masukkan jumlah yang valid.';
                         }
                         return null;
@@ -277,20 +285,22 @@ class _AddBillScreenState extends State<AddBillScreen> {
                           child: Text(categoryLabel(category)),
                         );
                       }).toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            _category = value;
-                          });
-                        }
-                      },
+                      onChanged: _isSaving
+                          ? null
+                          : (value) {
+                              if (value != null) {
+                                setState(() {
+                                  _category = value;
+                                });
+                              }
+                            },
                     ),
                     const SizedBox(height: 20),
 
                     _buildLabel('Tanggal Jatuh Tempo'),
                     const SizedBox(height: 8),
                     InkWell(
-                      onTap: _selectDate,
+                      onTap: _isSaving ? null : _selectDate,
                       borderRadius: BorderRadius.circular(14),
                       child: InputDecorator(
                         decoration: _inputDecoration(
@@ -337,7 +347,16 @@ class _AddBillScreenState extends State<AddBillScreen> {
                       width: double.infinity,
                       child: FilledButton.icon(
                         onPressed: _isSaving ? null : _saveBill,
-                        icon: const Icon(Icons.save_rounded),
+                        icon: _isSaving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.save_rounded),
                         label: Text(
                           _isSaving ? 'Menyimpan...' : 'Simpan Tagihan',
                         ),

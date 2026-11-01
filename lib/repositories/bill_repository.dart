@@ -11,7 +11,7 @@ class BillRepository {
     return _service.getBills();
   }
 
-  Future<void> addBill(Bill bill) {
+  Future<Bill> addBill(Bill bill) {
     return _service.addBill(bill);
   }
 

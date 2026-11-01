@@ -60,8 +60,13 @@ class BillProvider extends ChangeNotifier {
   Future<void> addBill(Bill bill) async {
     try {
       _errorMessage = null;
-      await _repository.addBill(bill);
-      _bills = [..._bills, bill];
+
+      // Simpan ke database dan ambil data dengan ID dari Supabase.
+      final savedBill = await _repository.addBill(bill);
+
+      // Masukkan data hasil penyimpanan ke daftar aplikasi.
+      _bills = [..._bills, savedBill];
+
       notifyListeners();
     } catch (error) {
       _errorMessage = 'Gagal menambahkan tagihan: $error';
@@ -92,7 +97,9 @@ class BillProvider extends ChangeNotifier {
     try {
       _errorMessage = null;
       await _repository.deleteBill(id);
+
       _bills = _bills.where((bill) => bill.id != id).toList();
+
       notifyListeners();
     } catch (error) {
       _errorMessage = 'Gagal menghapus tagihan: $error';

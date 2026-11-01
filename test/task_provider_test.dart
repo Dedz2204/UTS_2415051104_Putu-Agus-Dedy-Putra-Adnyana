@@ -21,8 +21,8 @@ class FakeBillRepository extends BillRepository {
   }
 
   @override
-  Future<void> addBill(Bill bill) async {
-    _testBills.add(bill);
+  Future<Bill> addBill(Bill bill) async {
+    return bill;
   }
 
   @override
