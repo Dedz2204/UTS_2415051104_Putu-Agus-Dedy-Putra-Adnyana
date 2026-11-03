@@ -29,6 +29,8 @@ class _AddBillScreenState extends State<AddBillScreen> {
 
   bool _isSaving = false;
 
+  bool get _isProcessing => _isSaving || widget.provider.isAdding;
+
   double _parseAmount(String value) {
     final cleanedValue = value
         .replaceAll('.', '')
@@ -56,6 +58,8 @@ class _AddBillScreenState extends State<AddBillScreen> {
   }
 
   Future<void> _saveBill() async {
+    if (_isProcessing) return;
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -108,8 +112,10 @@ class _AddBillScreenState extends State<AddBillScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal menambahkan tagihan: $error'),
+        const SnackBar(
+          content: Text(
+            'Gagal menyimpan tagihan. Periksa koneksi internet dan coba lagi.',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -161,6 +167,7 @@ class _AddBillScreenState extends State<AddBillScreen> {
 
                 TextFormField(
                   controller: _nameController,
+                  enabled: !_isProcessing,
                   decoration: const InputDecoration(
                     labelText: 'Nama Tagihan',
                     hintText: 'Contoh: Tagihan Listrik',
@@ -178,6 +185,7 @@ class _AddBillScreenState extends State<AddBillScreen> {
 
                 TextFormField(
                   controller: _providerController,
+                  enabled: !_isProcessing,
                   decoration: const InputDecoration(
                     labelText: 'Penyedia Tagihan',
                     hintText: 'Contoh: PLN, Telkomsel, PDAM',
@@ -195,6 +203,7 @@ class _AddBillScreenState extends State<AddBillScreen> {
 
                 TextFormField(
                   controller: _amountController,
+                  enabled: !_isProcessing,
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
@@ -232,7 +241,7 @@ class _AddBillScreenState extends State<AddBillScreen> {
                       child: Text(categoryLabel(category)),
                     );
                   }).toList(),
-                  onChanged: _isSaving
+                  onChanged: _isProcessing
                       ? null
                       : (value) {
                           if (value != null) {
@@ -245,7 +254,7 @@ class _AddBillScreenState extends State<AddBillScreen> {
                 const SizedBox(height: 16),
 
                 InkWell(
-                  onTap: _isSaving ? null : _selectDate,
+                  onTap: _isProcessing ? null : _selectDate,
                   borderRadius: BorderRadius.circular(8),
                   child: InputDecorator(
                     decoration: const InputDecoration(
@@ -264,6 +273,7 @@ class _AddBillScreenState extends State<AddBillScreen> {
 
                 TextFormField(
                   controller: _noteController,
+                  enabled: !_isProcessing,
                   maxLines: 3,
                   decoration: const InputDecoration(
                     labelText: 'Catatan (Opsional)',
@@ -278,13 +288,13 @@ class _AddBillScreenState extends State<AddBillScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: _isSaving ? null : _saveBill,
+                    onPressed: _isProcessing ? null : _saveBill,
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFF2563EB),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: _isSaving
+                    child: _isProcessing
                         ? const SizedBox(
                             height: 20,
                             width: 20,

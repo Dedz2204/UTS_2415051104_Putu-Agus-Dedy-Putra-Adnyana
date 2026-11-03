@@ -31,6 +31,8 @@ class _EditBillScreenState extends State<EditBillScreen> {
 
   bool _isSaving = false;
 
+  bool get _isProcessing => _isSaving || widget.provider.isUpdating;
+
   List<BillCategory> get _categories => BillCategory.values;
 
   @override
@@ -89,6 +91,8 @@ class _EditBillScreenState extends State<EditBillScreen> {
   }
 
   Future<void> _selectDate() async {
+    if (_isProcessing) return;
+
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
@@ -110,7 +114,7 @@ class _EditBillScreenState extends State<EditBillScreen> {
   }
 
   Future<void> _updateBill() async {
-    if (_isSaving) return;
+    if (_isProcessing) return;
 
     if (!_formKey.currentState!.validate()) return;
 
@@ -152,15 +156,25 @@ class _EditBillScreenState extends State<EditBillScreen> {
 
       if (!mounted) return;
 
-      Navigator.of(context).pop(true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tagihan berhasil diperbarui.'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.green,
+        ),
+      );
 
+      Navigator.of(context).pop(true);
     } catch (error) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal memperbarui tagihan: $error'),
+        const SnackBar(
+          content: Text(
+            'Gagal memperbarui tagihan. Periksa koneksi internet dan coba lagi.',
+          ),
           behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red,
         ),
       );
     } finally {
@@ -228,6 +242,7 @@ class _EditBillScreenState extends State<EditBillScreen> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _nameController,
+                      enabled: !_isProcessing,
                       textCapitalization: TextCapitalization.sentences,
                       textInputAction: TextInputAction.next,
                       decoration: _inputDecoration(
@@ -247,6 +262,7 @@ class _EditBillScreenState extends State<EditBillScreen> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _providerController,
+                      enabled: !_isProcessing,
                       textCapitalization: TextCapitalization.words,
                       textInputAction: TextInputAction.next,
                       decoration: _inputDecoration(
@@ -266,6 +282,7 @@ class _EditBillScreenState extends State<EditBillScreen> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _amountController,
+                      enabled: !_isProcessing,
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
@@ -303,7 +320,7 @@ class _EditBillScreenState extends State<EditBillScreen> {
                           child: Text(categoryLabel(category)),
                         );
                       }).toList(),
-                      onChanged: _isSaving
+                      onChanged: _isProcessing
                           ? null
                           : (value) {
                               if (value != null) {
@@ -318,7 +335,7 @@ class _EditBillScreenState extends State<EditBillScreen> {
                     _buildLabel('Tanggal Jatuh Tempo'),
                     const SizedBox(height: 8),
                     InkWell(
-                      onTap: _isSaving ? null : _selectDate,
+                      onTap: _isProcessing ? null : _selectDate,
                       borderRadius: BorderRadius.circular(14),
                       child: InputDecorator(
                         decoration: _inputDecoration(
@@ -350,6 +367,7 @@ class _EditBillScreenState extends State<EditBillScreen> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _noteController,
+                      enabled: !_isProcessing,
                       minLines: 3,
                       maxLines: 5,
                       textCapitalization: TextCapitalization.sentences,
@@ -364,8 +382,8 @@ class _EditBillScreenState extends State<EditBillScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(
-                        onPressed: _isSaving ? null : _updateBill,
-                        icon: _isSaving
+                        onPressed: _isProcessing ? null : _updateBill,
+                        icon: _isProcessing
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
@@ -376,7 +394,7 @@ class _EditBillScreenState extends State<EditBillScreen> {
                               )
                             : const Icon(Icons.save_outlined),
                         label: Text(
-                          _isSaving
+                          _isProcessing
                               ? 'Menyimpan...'
                               : 'Simpan Perubahan',
                         ),

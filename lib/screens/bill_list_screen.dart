@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/bill.dart';
 import '../providers/bill_provider.dart';
 import '../widgets/bill_card.dart';
+import '../widgets/loading_error_empty_view.dart';
 import '../widgets/responsive_layout.dart';
 import 'add_bill_screen.dart';
 import 'bill_detail_screen.dart';
@@ -105,7 +106,8 @@ class _BillListScreenState extends State<BillListScreen> {
       body: AnimatedBuilder(
         animation: widget.provider,
         builder: (context, _) {
-          final allBills = widget.provider.bills;
+          final provider = widget.provider;
+          final allBills = provider.bills;
           final filteredBills = _getFilteredBills(allBills);
           final unpaidCount =
               allBills.where((bill) => !bill.isPaid).length;
@@ -166,32 +168,11 @@ class _BillListScreenState extends State<BillListScreen> {
                     ),
                     const SizedBox(height: 14),
                     Expanded(
-                      child: filteredBills.isEmpty
-                          ? _EmptySearchResult(
-                              hasBills: allBills.isNotEmpty,
-                              hasQuery: _query.isNotEmpty,
-                              onReset: _resetFilters,
-                              onAdd: _openAddBill,
-                            )
-                          : ListView.separated(
-                              padding: const EdgeInsets.only(
-                                bottom: 100,
-                              ),
-                              itemCount: filteredBills.length,
-                              separatorBuilder: (_, _) =>
-                                  const SizedBox(height: 12),
-                              itemBuilder: (context, index) {
-                                final bill = filteredBills[index];
-
-                                return BillCard(
-                                  bill: bill,
-                                  onTap: () =>
-                                      _openBillDetail(bill),
-                                  onEdit: () =>
-                                      _openEditBill(bill),
-                                );
-                              },
-                            ),
+                      child: _buildBillContent(
+                        provider: provider,
+                        allBills: allBills,
+                        filteredBills: filteredBills,
+                      ),
                     ),
                   ],
                 );
@@ -211,6 +192,111 @@ class _BillListScreenState extends State<BillListScreen> {
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
+    );
+  }
+
+  Widget _buildBillContent({
+    required BillProvider provider,
+    required List<Bill> allBills,
+    required List<Bill> filteredBills,
+  }) {
+    // Loading ketika data pertama kali dimuat.
+    if (provider.isLoading && allBills.isEmpty) {
+      return const LoadingErrorEmptyView(
+        isLoading: true,
+        isEmpty: false,
+        loadingMessage: 'Memuat daftar tagihan...',
+      );
+    }
+
+    // Error ketika data gagal dimuat dan belum ada data.
+    if (provider.hasError && allBills.isEmpty) {
+      return LoadingErrorEmptyView(
+        isLoading: false,
+        isEmpty: false,
+        errorMessage: provider.errorMessage,
+        onRetry: provider.retry,
+      );
+    }
+
+    // Data berhasil dimuat tetapi belum ada tagihan.
+    if (provider.isEmpty) {
+      return const LoadingErrorEmptyView(
+        isLoading: false,
+        isEmpty: true,
+        emptyTitle: 'Belum Ada Tagihan',
+        emptyMessage:
+            'Mulai catat pembayaranmu agar tidak ada tagihan yang terlewat.',
+        emptyIcon: Icons.receipt_long_outlined,
+      );
+    }
+
+    // Hasil pencarian atau filter tidak ditemukan.
+    if (filteredBills.isEmpty) {
+      return _EmptySearchResult(
+        hasBills: allBills.isNotEmpty,
+        hasQuery: _query.isNotEmpty,
+        onReset: _resetFilters,
+        onAdd: _openAddBill,
+      );
+    }
+
+    // Menampilkan daftar tagihan dan pesan error jika refresh gagal.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (provider.hasError)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Material(
+              color: const Color(0xFFFEF2F2),
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Color(0xFFDC2626),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        provider.errorMessage ??
+                            'Gagal memperbarui data.',
+                        style: const TextStyle(
+                          color: Color(0xFF991B1B),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: provider.retry,
+                      child: const Text('Coba lagi'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.only(bottom: 100),
+            itemCount: filteredBills.length,
+            separatorBuilder: (_, _) =>
+                const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final bill = filteredBills[index];
+
+              return BillCard(
+                bill: bill,
+                onTap: () => _openBillDetail(bill),
+                onEdit: () => _openEditBill(bill),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 

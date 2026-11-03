@@ -7,12 +7,15 @@ class FakeBillRepository extends BillRepository {
   FakeBillRepository({
     List<Bill> initialBills = const [],
     this.shouldFailLoading = false,
+    this.shouldFailAdding = false,
     this.shouldFailUpdating = false,
     this.shouldFailDeleting = false,
   }) : _testBills = List<Bill>.from(initialBills);
 
   final List<Bill> _testBills;
-  final bool shouldFailLoading;
+
+  bool shouldFailLoading;
+  final bool shouldFailAdding;
   final bool shouldFailUpdating;
   final bool shouldFailDeleting;
 
@@ -21,11 +24,16 @@ class FakeBillRepository extends BillRepository {
     if (shouldFailLoading) {
       throw Exception('Simulasi kegagalan memuat data');
     }
+
     return List<Bill>.unmodifiable(_testBills);
   }
 
   @override
   Future<Bill> addBill(Bill bill) async {
+    if (shouldFailAdding) {
+      throw Exception('Simulasi kegagalan menyimpan tagihan');
+    }
+
     _testBills.add(bill);
     return bill;
   }
@@ -118,6 +126,33 @@ void main() {
       provider.dispose();
     });
 
+    test('tidak menambahkan tagihan jika penyimpanan gagal', () async {
+      final provider = BillProvider(
+        repository: FakeBillRepository(
+          shouldFailAdding: true,
+        ),
+      );
+
+      await Future<void>.delayed(Duration.zero);
+
+      try {
+        await expectLater(
+          provider.addBill(createBill()),
+          throwsException,
+        );
+
+        expect(provider.bills, isEmpty);
+        expect(provider.isAdding, isFalse);
+        expect(provider.hasError, isTrue);
+        expect(
+          provider.errorMessage,
+          contains('Gagal menambahkan tagihan'),
+        );
+      } finally {
+        provider.dispose();
+      }
+    });
+
     test('memperbarui nama dan jumlah tagihan', () async {
       final provider = BillProvider(
         repository: FakeBillRepository(
@@ -153,18 +188,20 @@ void main() {
 
       await Future<void>.delayed(Duration.zero);
 
-      expect(
-        () => provider.updateBill(
-          createBill(name: 'Nama Baru'),
-        ),
-        throwsException,
-      );
+      try {
+        await expectLater(
+          provider.updateBill(
+            createBill(name: 'Nama Baru'),
+          ),
+          throwsException,
+        );
 
-      await Future<void>.delayed(Duration.zero);
-
-      expect(provider.bills.first.name, 'Tagihan Internet');
-
-      provider.dispose();
+        expect(provider.bills.first.name, 'Tagihan Internet');
+        expect(provider.isUpdating, isFalse);
+        expect(provider.hasError, isTrue);
+      } finally {
+        provider.dispose();
+      }
     });
 
     test('mengubah status tagihan menjadi Paid', () async {
@@ -247,6 +284,8 @@ void main() {
           'Tagihan Internet',
         );
         expect(provider.isEmpty, isFalse);
+        expect(provider.isDeleting, isFalse);
+        expect(provider.hasError, isTrue);
       } finally {
         provider.dispose();
       }
@@ -283,6 +322,33 @@ void main() {
       expect(provider.isLoading, isFalse);
 
       provider.dispose();
+    });
+
+    test('berhasil retry setelah kegagalan memuat tagihan', () async {
+      final repository = FakeBillRepository(
+        shouldFailLoading: true,
+      );
+
+      final provider = BillProvider(
+        repository: repository,
+      );
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(provider.hasError, isTrue);
+      expect(provider.bills, isEmpty);
+
+      repository.shouldFailLoading = false;
+
+      try {
+        await provider.retry();
+
+        expect(provider.hasError, isFalse);
+        expect(provider.isLoading, isFalse);
+        expect(provider.bills, isEmpty);
+      } finally {
+        provider.dispose();
+      }
     });
 
     test('mengirim notifikasi ketika state berubah', () async {
