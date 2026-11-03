@@ -23,9 +23,10 @@ class BillListScreen extends StatefulWidget {
 
 class _BillListScreenState extends State<BillListScreen> {
   static const Color _primary = Color(0xFF2563EB);
-  static const Color _background = Color(0xFFF5F7FB);
+  static const Color _background = Color(0xFFF8FAFC);
   static const Color _dark = Color(0xFF0F172A);
   static const Color _muted = Color(0xFF64748B);
+  static const Color _border = Color(0xFFE2E8F0);
 
   final TextEditingController _searchController =
       TextEditingController();
@@ -33,7 +34,7 @@ class _BillListScreenState extends State<BillListScreen> {
   String _query = '';
   String _filter = 'Semua';
 
-  final List<String> _filters = const [
+  static const List<String> _filters = [
     'Semua',
     'Belum Dibayar',
     'Sudah Dibayar',
@@ -66,6 +67,7 @@ class _BillListScreenState extends State<BillListScreen> {
     }).toList();
 
     filtered.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+
     return filtered;
   }
 
@@ -91,15 +93,6 @@ class _BillListScreenState extends State<BillListScreen> {
                 letterSpacing: -0.6,
               ),
             ),
-            SizedBox(height: 3),
-            Text(
-              'Kelola semua pembayaranmu',
-              style: TextStyle(
-                color: _muted,
-                fontSize: 12,
-                fontWeight: FontWeight.normal,
-              ),
-            ),
           ],
         ),
       ),
@@ -109,8 +102,10 @@ class _BillListScreenState extends State<BillListScreen> {
           final provider = widget.provider;
           final allBills = provider.bills;
           final filteredBills = _getFilteredBills(allBills);
+
           final unpaidCount =
               allBills.where((bill) => !bill.isPaid).length;
+
           final paidCount =
               allBills.where((bill) => bill.isPaid).length;
 
@@ -123,50 +118,28 @@ class _BillListScreenState extends State<BillListScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: 8),
+
                     _buildOverview(
                       total: allBills.length,
                       unpaid: unpaidCount,
                       paid: paidCount,
                       isMobile: isMobile,
                     ),
+
                     const SizedBox(height: 22),
+
                     _buildSearchField(),
+
                     const SizedBox(height: 14),
+
                     _buildFilters(),
+
                     const SizedBox(height: 22),
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Daftar pembayaran',
-                            style: TextStyle(
-                              color: _dark,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 11,
-                            vertical: 7,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEFF6FF),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '${filteredBills.length} tagihan',
-                            style: const TextStyle(
-                              color: _primary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+
+                    _buildListHeader(filteredBills.length),
+
                     const SizedBox(height: 14),
+
                     Expanded(
                       child: _buildBillContent(
                         provider: provider,
@@ -185,13 +158,50 @@ class _BillListScreenState extends State<BillListScreen> {
         onPressed: _openAddBill,
         backgroundColor: _primary,
         foregroundColor: Colors.white,
-        elevation: 5,
+        elevation: 3,
         icon: const Icon(Icons.add_rounded),
         label: const Text(
           'Tambah Tagihan',
-          style: TextStyle(fontWeight: FontWeight.w700),
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildListHeader(int count) {
+    return Row(
+      children: [
+        const Expanded(
+          child: Text(
+            'Daftar pembayaran',
+            style: TextStyle(
+              color: _dark,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 11,
+            vertical: 7,
+          ),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEFF6FF),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            '$count tagihan',
+            style: const TextStyle(
+              color: _primary,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -235,7 +245,7 @@ class _BillListScreenState extends State<BillListScreen> {
     if (filteredBills.isEmpty) {
       return _EmptySearchResult(
         hasBills: allBills.isNotEmpty,
-        hasQuery: _query.isNotEmpty,
+        hasQuery: _query.trim().isNotEmpty,
         onReset: _resetFilters,
         onAdd: _openAddBill,
       );
@@ -279,8 +289,11 @@ class _BillListScreenState extends State<BillListScreen> {
               ),
             ),
           ),
+
         Expanded(
           child: ListView.separated(
+            keyboardDismissBehavior:
+                ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.only(bottom: 100),
             itemCount: filteredBills.length,
             separatorBuilder: (_, _) =>
@@ -411,9 +424,7 @@ class _BillListScreenState extends State<BillListScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFE7ECF3),
-        ),
+        border: Border.all(color: _border),
       ),
       child: TextField(
         controller: _searchController,
@@ -446,6 +457,7 @@ class _BillListScreenState extends State<BillListScreen> {
                   ),
                   onPressed: () {
                     _searchController.clear();
+
                     setState(() {
                       _query = '';
                     });
@@ -502,9 +514,7 @@ class _BillListScreenState extends State<BillListScreen> {
               backgroundColor: Colors.white,
               selectedColor: _primary,
               side: BorderSide(
-                color: selected
-                    ? _primary
-                    : const Color(0xFFE2E8F0),
+                color: selected ? _primary : _border,
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -524,6 +534,7 @@ class _BillListScreenState extends State<BillListScreen> {
 
   void _resetFilters() {
     _searchController.clear();
+
     setState(() {
       _query = '';
       _filter = 'Semua';
@@ -625,6 +636,7 @@ class _OverviewItem extends StatelessWidget {
           Text(
             label,
             maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Color(0xFFDCE8FF),
               fontSize: 10,
@@ -637,6 +649,11 @@ class _OverviewItem extends StatelessWidget {
 }
 
 class _EmptySearchResult extends StatelessWidget {
+  static const Color _primary = Color(0xFF2563EB);
+  static const Color _dark = Color(0xFF0F172A);
+  static const Color _muted = Color(0xFF64748B);
+  static const Color _border = Color(0xFFE2E8F0);
+
   final bool hasBills;
   final bool hasQuery;
   final VoidCallback onReset;
@@ -670,9 +687,7 @@ class _EmptySearchResult extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: const Color(0xFFE7ECF3),
-            ),
+            border: Border.all(color: _border),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -687,7 +702,7 @@ class _EmptySearchResult extends StatelessWidget {
                 child: const Icon(
                   Icons.receipt_long_outlined,
                   size: 34,
-                  color: Color(0xFF2563EB),
+                  color: _primary,
                 ),
               ),
               const SizedBox(height: 18),
@@ -695,7 +710,7 @@ class _EmptySearchResult extends StatelessWidget {
                 title,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: Color(0xFF0F172A),
+                  color: _dark,
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
                 ),
@@ -705,7 +720,7 @@ class _EmptySearchResult extends StatelessWidget {
                 description,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: Color(0xFF64748B),
+                  color: _muted,
                   fontSize: 12,
                   height: 1.6,
                 ),
@@ -717,7 +732,7 @@ class _EmptySearchResult extends StatelessWidget {
                   icon: const Icon(Icons.add_rounded),
                   label: const Text('Tambah Tagihan'),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
+                    backgroundColor: _primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 18,
@@ -736,10 +751,8 @@ class _EmptySearchResult extends StatelessWidget {
                     'Reset Pencarian dan Filter',
                   ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF2563EB),
-                    side: const BorderSide(
-                      color: Color(0xFF2563EB),
-                    ),
+                    foregroundColor: _primary,
+                    side: const BorderSide(color: _primary),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(13),
                     ),

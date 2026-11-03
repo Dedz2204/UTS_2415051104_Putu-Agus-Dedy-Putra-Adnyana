@@ -123,7 +123,7 @@ class _ExpenseTaskAppState extends State<ExpenseTaskApp> {
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'ExpenseTask',
+      title: 'PayTrack',
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
@@ -330,7 +330,7 @@ class _Header extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'ExpenseTask',
+                  'PayTrack',
                   style: TextStyle(
                     color: _ExpenseTaskAppState.textColor,
                     fontSize: 19,
@@ -544,7 +544,7 @@ class _Sidebar extends StatelessWidget {
               vertical: 16,
             ),
             child: Text(
-              isDesktop ? 'ExpenseTask  •  v1.0.0' : 'v1.0',
+              isDesktop ? 'PayTrack  •  v1.0.0' : 'v1.0',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Color(0xFF94A3B8),

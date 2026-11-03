@@ -19,6 +19,12 @@ class EditBillScreen extends StatefulWidget {
 }
 
 class _EditBillScreenState extends State<EditBillScreen> {
+  static const Color _primaryColor = Color(0xFF2563EB);
+  static const Color _textColor = Color(0xFF0F172A);
+  static const Color _mutedColor = Color(0xFF64748B);
+  static const Color _borderColor = Color(0xFFE2E8F0);
+  static const Color _backgroundColor = Color(0xFFF8FAFC);
+
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _nameController;
@@ -40,8 +46,9 @@ class _EditBillScreenState extends State<EditBillScreen> {
     super.initState();
 
     _nameController = TextEditingController(text: widget.bill.name);
-    _providerController =
-        TextEditingController(text: widget.bill.providerName);
+    _providerController = TextEditingController(
+      text: widget.bill.providerName,
+    );
     _amountController = TextEditingController(
       text: widget.bill.amount.toStringAsFixed(0),
     );
@@ -139,7 +146,6 @@ class _EditBillScreenState extends State<EditBillScreen> {
     try {
       final note = _noteController.text.trim();
 
-      // Membuat objek baru agar catatan lama dapat dikosongkan.
       final updatedBill = Bill(
         id: widget.bill.id,
         name: _nameController.text.trim(),
@@ -186,66 +192,198 @@ class _EditBillScreenState extends State<EditBillScreen> {
     }
   }
 
+  InputDecoration _inputDecoration({
+    required String label,
+    required String hint,
+    required IconData icon,
+    Widget? prefix,
+    bool alignLabelWithHint = false,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      prefixIcon: Icon(icon, color: _mutedColor),
+      prefix: prefix,
+      alignLabelWithHint: alignLabelWithHint,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 16,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: _borderColor),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: _borderColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(
+          color: _primaryColor,
+          width: 1.5,
+        ),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.red),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(
+          color: Colors.red,
+          width: 1.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, String subtitle) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+            color: _textColor,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            fontSize: 13,
+            color: _mutedColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDatePicker() {
+    return InkWell(
+      onTap: _isProcessing ? null : _selectDate,
+      borderRadius: BorderRadius.circular(12),
+      child: InputDecorator(
+        decoration: _inputDecoration(
+          label: 'Tanggal Jatuh Tempo',
+          hint: 'Pilih tanggal',
+          icon: Icons.calendar_month_outlined,
+        ).copyWith(
+          suffixIcon: const Icon(
+            Icons.edit_calendar_outlined,
+            color: _primaryColor,
+          ),
+        ),
+        child: Text(
+          _formatDate(_dueDate),
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: _textColor,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: _backgroundColor,
       appBar: AppBar(
         title: const Text(
           'Edit Tagihan',
-          style: TextStyle(fontWeight: FontWeight.w700),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: _textColor,
+          ),
         ),
-        backgroundColor: const Color(0xFFF5F7FB),
-        foregroundColor: const Color(0xFF0F172A),
+        backgroundColor: _backgroundColor,
+        foregroundColor: _textColor,
         elevation: 0,
+        scrolledUnderElevation: 0,
       ),
       body: ResponsiveLayout(
         maxContentWidth: 760,
         child: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.only(
+              top: 12,
+              bottom: 32,
+            ),
             children: [
               Container(
-                padding: const EdgeInsets.all(22),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: const Color(0xFFE2E8F0),
-                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: _borderColor),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Ubah Informasi Tagihan',
-                      style: TextStyle(
-                        color: Color(0xFF0F172A),
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(11),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.edit_note_rounded,
+                            color: _primaryColor,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Ubah Informasi Tagihan',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: _textColor,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Perbarui informasi tagihan sesuai kebutuhan.',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: _mutedColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 7),
-                    Text(
-                      'Perbarui informasi tagihan sesuai kebutuhanmu.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: const Color(0xFF64748B),
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 26),
+                    const SizedBox(height: 24),
 
-                    _buildLabel('Nama Tagihan'),
-                    const SizedBox(height: 8),
+                    _buildSectionTitle(
+                      'Detail Tagihan',
+                      'Perbarui nama, penyedia, dan jumlah tagihan.',
+                    ),
+                    const SizedBox(height: 16),
+
                     TextFormField(
                       controller: _nameController,
                       enabled: !_isProcessing,
                       textCapitalization: TextCapitalization.sentences,
                       textInputAction: TextInputAction.next,
                       decoration: _inputDecoration(
+                        label: 'Nama Tagihan',
                         hint: 'Contoh: Tagihan Wi-Fi',
                         icon: Icons.receipt_long_outlined,
                       ),
@@ -256,16 +394,15 @@ class _EditBillScreenState extends State<EditBillScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
 
-                    _buildLabel('Penyedia Tagihan'),
-                    const SizedBox(height: 8),
                     TextFormField(
                       controller: _providerController,
                       enabled: !_isProcessing,
                       textCapitalization: TextCapitalization.words,
                       textInputAction: TextInputAction.next,
                       decoration: _inputDecoration(
+                        label: 'Penyedia Tagihan',
                         hint: 'Contoh: PLN atau penyedia internet',
                         icon: Icons.business_outlined,
                       ),
@@ -276,10 +413,8 @@ class _EditBillScreenState extends State<EditBillScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
 
-                    _buildLabel('Jumlah Tagihan'),
-                    const SizedBox(height: 8),
                     TextFormField(
                       controller: _amountController,
                       enabled: !_isProcessing,
@@ -288,9 +423,10 @@ class _EditBillScreenState extends State<EditBillScreen> {
                       ),
                       textInputAction: TextInputAction.next,
                       decoration: _inputDecoration(
+                        label: 'Jumlah Tagihan',
                         hint: 'Contoh: 150000',
                         icon: Icons.payments_outlined,
-                        prefixText: 'Rp ',
+                        prefix: const Text('Rp '),
                       ),
                       validator: (value) {
                         final amount = _parseAmount(value ?? '');
@@ -303,14 +439,19 @@ class _EditBillScreenState extends State<EditBillScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
 
-                    _buildLabel('Kategori'),
-                    const SizedBox(height: 8),
+                    _buildSectionTitle(
+                      'Kategori dan Jatuh Tempo',
+                      'Pilih kategori serta tanggal pembayaran.',
+                    ),
+                    const SizedBox(height: 16),
+
                     DropdownButtonFormField<BillCategory>(
                       initialValue: _category,
                       isExpanded: true,
                       decoration: _inputDecoration(
+                        label: 'Kategori Tagihan',
                         hint: 'Pilih kategori',
                         icon: Icons.category_outlined,
                       ),
@@ -330,41 +471,17 @@ class _EditBillScreenState extends State<EditBillScreen> {
                               }
                             },
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
 
-                    _buildLabel('Tanggal Jatuh Tempo'),
-                    const SizedBox(height: 8),
-                    InkWell(
-                      onTap: _isProcessing ? null : _selectDate,
-                      borderRadius: BorderRadius.circular(14),
-                      child: InputDecorator(
-                        decoration: _inputDecoration(
-                          hint: 'Pilih tanggal',
-                          icon: Icons.calendar_month_outlined,
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                _formatDate(_dueDate),
-                                style: const TextStyle(
-                                  color: Color(0xFF0F172A),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            const Icon(
-                              Icons.edit_calendar_outlined,
-                              color: Color(0xFF2563EB),
-                            ),
-                          ],
-                        ),
-                      ),
+                    _buildDatePicker(),
+                    const SizedBox(height: 24),
+
+                    _buildSectionTitle(
+                      'Catatan Tambahan',
+                      'Tambahkan atau ubah catatan jika diperlukan.',
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
 
-                    _buildLabel('Catatan (Opsional)'),
-                    const SizedBox(height: 8),
                     TextFormField(
                       controller: _noteController,
                       enabled: !_isProcessing,
@@ -372,122 +489,62 @@ class _EditBillScreenState extends State<EditBillScreen> {
                       maxLines: 5,
                       textCapitalization: TextCapitalization.sentences,
                       decoration: _inputDecoration(
+                        label: 'Catatan (Opsional)',
                         hint: 'Tambahkan catatan jika diperlukan',
-                        icon: Icons.notes_rounded,
+                        icon: Icons.notes_outlined,
                         alignLabelWithHint: true,
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: _isProcessing ? null : _updateBill,
-                        icon: _isProcessing
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.save_outlined),
-                        label: Text(
-                          _isProcessing
-                              ? 'Menyimpan...'
-                              : 'Simpan Perubahan',
-                        ),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size.fromHeight(52),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
+
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _isProcessing ? null : _updateBill,
+                  icon: _isProcessing
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.save_outlined),
+                  label: Text(
+                    _isProcessing ? 'Menyimpan...' : 'Simpan Perubahan',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _primaryColor,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: _primaryColor.withValues(
+                      alpha: 0.6,
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 17),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               const Text(
                 'Pastikan informasi tagihan yang diperbarui sudah benar.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Color(0xFF64748B),
+                  color: _mutedColor,
                   fontSize: 12,
                 ),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        color: Color(0xFF0F172A),
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration({
-    required String hint,
-    required IconData icon,
-    String? prefixText,
-    bool alignLabelWithHint = false,
-  }) {
-    return InputDecoration(
-      hintText: hint,
-      prefixText: prefixText,
-      prefixIcon: Icon(
-        icon,
-        color: const Color(0xFF64748B),
-      ),
-      alignLabelWithHint: alignLabelWithHint,
-      filled: true,
-      fillColor: const Color(0xFFFAFBFE),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 16,
-      ),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Color(0xFFE2E8F0),
-        ),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Color(0xFFE2E8F0),
-        ),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Color(0xFF2563EB),
-          width: 1.5,
-        ),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Colors.red,
-        ),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Colors.red,
-          width: 1.5,
         ),
       ),
     );

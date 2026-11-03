@@ -20,8 +20,18 @@ class BillDetailScreen extends StatefulWidget {
 }
 
 class _BillDetailScreenState extends State<BillDetailScreen> {
+  static const Color _primaryColor = Color(0xFF2563EB);
+  static const Color _textColor = Color(0xFF0F172A);
+  static const Color _mutedColor = Color(0xFF64748B);
+  static const Color _borderColor = Color(0xFFE2E8F0);
+  static const Color _backgroundColor = Color(0xFFF8FAFC);
+  static const Color _successColor = Color(0xFF16A34A);
+  static const Color _warningColor = Color(0xFFF59E0B);
+
   bool _isUpdatingPayment = false;
   bool _isDeleting = false;
+
+  bool get _isProcessing => _isUpdatingPayment || _isDeleting;
 
   String _formatCurrency(double amount) {
     final value = amount.toStringAsFixed(0);
@@ -73,7 +83,7 @@ class _BillDetailScreenState extends State<BillDetailScreen> {
     required String billId,
     required bool markAsPaid,
   }) async {
-    if (_isUpdatingPayment || _isDeleting) return;
+    if (_isProcessing) return;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -147,14 +157,14 @@ class _BillDetailScreenState extends State<BillDetailScreen> {
   }
 
   Future<void> _deleteBill(BuildContext context, Bill bill) async {
-    if (_isDeleting || _isUpdatingPayment) return;
+    if (_isProcessing) return;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        icon: Icon(
+        icon: const Icon(
           Icons.delete_outline_rounded,
-          color: Theme.of(context).colorScheme.error,
+          color: Colors.red,
           size: 32,
         ),
         title: const Text('Hapus Tagihan?'),
@@ -169,7 +179,7 @@ class _BillDetailScreenState extends State<BillDetailScreen> {
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
+              backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.pop(dialogContext, true),
@@ -186,12 +196,10 @@ class _BillDetailScreenState extends State<BillDetailScreen> {
     });
 
     try {
-      // Penghapusan melalui Provider -> Repository -> Service.
       await widget.provider.deleteBill(bill.id);
 
       if (!mounted) return;
 
-      // Kembali ke halaman sebelumnya setelah penghapusan berhasil.
       Navigator.of(this.context).pop(true);
     } catch (error) {
       if (!mounted) return;
@@ -211,15 +219,321 @@ class _BillDetailScreenState extends State<BillDetailScreen> {
     }
   }
 
+  Widget _buildDetailItem({
+    required IconData icon,
+    required String title,
+    required String value,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _borderColor),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              color: _primaryColor,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: _mutedColor,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _textColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(bool isPaid) {
+    final color = isPaid ? _successColor : _warningColor;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 13,
+        vertical: 8,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isPaid ? Icons.check_circle : Icons.pending_actions,
+            color: Colors.white,
+            size: 16,
+          ),
+          const SizedBox(width: 7),
+          Text(
+            isPaid ? 'Sudah Dibayar' : 'Belum Dibayar',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Icon(
+            Icons.circle,
+            color: color,
+            size: 7,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(Bill bill) {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: _isProcessing
+                ? null
+                : () => _changePaymentStatus(
+                      context,
+                      billId: bill.id,
+                      markAsPaid: !bill.isPaid,
+                    ),
+            icon: _isUpdatingPayment
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Icon(
+                    bill.isPaid
+                        ? Icons.undo_rounded
+                        : Icons.check_circle_outline,
+                  ),
+            label: Text(
+              _isUpdatingPayment
+                  ? 'Memperbarui...'
+                  : bill.isPaid
+                      ? 'Kembalikan ke Belum Dibayar'
+                      : 'Tandai Sudah Dibayar',
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: bill.isPaid ? _warningColor : _successColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: _mutedColor,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _isProcessing
+                ? null
+                : () => _editBill(context, bill),
+            icon: const Icon(Icons.edit_outlined),
+            label: const Text('Edit Tagihan'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _primaryColor,
+              side: const BorderSide(color: _borderColor),
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _isProcessing
+                ? null
+                : () => _deleteBill(context, bill),
+            icon: _isDeleting
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.delete_outline_rounded),
+            label: Text(_isDeleting ? 'Menghapus...' : 'Hapus Tagihan'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.red,
+              side: const BorderSide(color: Color(0xFFFECACA)),
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContent(Bill bill) {
+    return ListView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.only(
+        top: 12,
+        bottom: 32,
+      ),
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFF2563EB),
+                Color(0xFF1D4ED8),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Total Tagihan',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 10),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  _formatCurrency(bill.amount),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              _buildStatusBadge(bill.isPaid),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        const Text(
+          'Informasi Tagihan',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+            color: _textColor,
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        _buildDetailItem(
+          icon: Icons.receipt_long_outlined,
+          title: 'Nama Tagihan',
+          value: bill.name,
+        ),
+        _buildDetailItem(
+          icon: Icons.business_outlined,
+          title: 'Penyedia',
+          value: bill.providerName,
+        ),
+        _buildDetailItem(
+          icon: Icons.category_outlined,
+          title: 'Kategori',
+          value: categoryLabel(bill.category),
+        ),
+        _buildDetailItem(
+          icon: Icons.calendar_month_outlined,
+          title: 'Jatuh Tempo',
+          value: _formatDate(bill.dueDate),
+        ),
+        if (bill.isPaid && bill.paidAt != null)
+          _buildDetailItem(
+            icon: Icons.check_circle_outline,
+            title: 'Tanggal Pembayaran',
+            value: _formatDate(bill.paidAt!),
+          ),
+        _buildDetailItem(
+          icon: Icons.notes_outlined,
+          title: 'Catatan',
+          value: bill.note == null || bill.note!.trim().isEmpty
+              ? '-'
+              : bill.note!,
+        ),
+        const SizedBox(height: 12),
+
+        _buildActionButtons(bill),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _backgroundColor,
       appBar: AppBar(
-        title: const Text('Detail Tagihan'),
+        title: const Text(
+          'Detail Tagihan',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: _textColor,
+          ),
+        ),
+        backgroundColor: _backgroundColor,
+        foregroundColor: _textColor,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         actions: [
           IconButton(
             tooltip: 'Edit tagihan',
-            onPressed: _isDeleting || _isUpdatingPayment
+            onPressed: _isProcessing
                 ? null
                 : () {
                     final bill = widget.provider.bills
@@ -234,7 +548,7 @@ class _BillDetailScreenState extends State<BillDetailScreen> {
           ),
           IconButton(
             tooltip: 'Hapus tagihan',
-            onPressed: _isDeleting || _isUpdatingPayment
+            onPressed: _isProcessing
                 ? null
                 : () {
                     final bill = widget.provider.bills
@@ -249,9 +563,7 @@ class _BillDetailScreenState extends State<BillDetailScreen> {
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.delete_outline_rounded),
           ),
@@ -267,245 +579,18 @@ class _BillDetailScreenState extends State<BillDetailScreen> {
 
           if (currentBill == null) {
             return const Center(
-              child: Text('Tagihan sudah tidak tersedia.'),
+              child: Text(
+                'Tagihan sudah tidak tersedia.',
+                style: TextStyle(color: _mutedColor),
+              ),
             );
           }
 
           return ResponsiveLayout(
             maxContentWidth: 850,
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2563EB),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        currentBill.isPaid
-                            ? 'Status Pembayaran'
-                            : 'Total Tagihan',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          _formatCurrency(currentBill.amount),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 30,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 7,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        child: Text(
-                          currentBill.isPaid
-                              ? 'Sudah Dibayar'
-                              : 'Belum Dibayar',
-                          style: const TextStyle(
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Informasi Tagihan',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _DetailItem(
-                  icon: Icons.receipt_long_outlined,
-                  title: 'Nama Tagihan',
-                  value: currentBill.name,
-                ),
-                _DetailItem(
-                  icon: Icons.business_outlined,
-                  title: 'Penyedia',
-                  value: currentBill.providerName,
-                ),
-                _DetailItem(
-                  icon: Icons.category_outlined,
-                  title: 'Kategori',
-                  value: categoryLabel(currentBill.category),
-                ),
-                _DetailItem(
-                  icon: Icons.calendar_month_outlined,
-                  title: 'Jatuh Tempo',
-                  value: _formatDate(currentBill.dueDate),
-                ),
-                if (currentBill.isPaid && currentBill.paidAt != null)
-                  _DetailItem(
-                    icon: Icons.check_circle_outline,
-                    title: 'Tanggal Pembayaran',
-                    value: _formatDate(currentBill.paidAt!),
-                  ),
-                _DetailItem(
-                  icon: Icons.notes_outlined,
-                  title: 'Catatan',
-                  value: currentBill.note == null ||
-                          currentBill.note!.trim().isEmpty
-                      ? '-'
-                      : currentBill.note!,
-                ),
-                const SizedBox(height: 24),
-
-                FilledButton.icon(
-                  onPressed: _isUpdatingPayment || _isDeleting
-                      ? null
-                      : () => _changePaymentStatus(
-                            context,
-                            billId: currentBill.id,
-                            markAsPaid: !currentBill.isPaid,
-                          ),
-                  icon: _isUpdatingPayment
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Icon(
-                          currentBill.isPaid
-                              ? Icons.undo_rounded
-                              : Icons.check_circle_outline,
-                        ),
-                  label: Text(
-                    _isUpdatingPayment
-                        ? 'Memperbarui...'
-                        : currentBill.isPaid
-                            ? 'Kembalikan ke Belum Dibayar'
-                            : 'Tandai Sudah Dibayar',
-                  ),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(50),
-                    backgroundColor: currentBill.isPaid
-                        ? const Color(0xFFF59E0B)
-                        : const Color(0xFF16A34A),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                OutlinedButton.icon(
-                  onPressed: _isDeleting || _isUpdatingPayment
-                      ? null
-                      : () => _editBill(context, currentBill),
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Edit Tagihan'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                OutlinedButton.icon(
-                  onPressed: _isDeleting || _isUpdatingPayment
-                      ? null
-                      : () => _deleteBill(context, currentBill),
-                  icon: const Icon(
-                    Icons.delete_outline_rounded,
-                    color: Colors.red,
-                  ),
-                  label: Text(
-                    _isDeleting ? 'Menghapus...' : 'Hapus Tagihan',
-                    style: const TextStyle(
-                      color: Colors.red,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                    side: const BorderSide(
-                      color: Colors.red,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            child: _buildContent(currentBill),
           );
         },
-      ),
-    );
-  }
-}
-
-class _DetailItem extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String value;
-
-  const _DetailItem({
-    required this.icon,
-    required this.title,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant,
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            icon,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
