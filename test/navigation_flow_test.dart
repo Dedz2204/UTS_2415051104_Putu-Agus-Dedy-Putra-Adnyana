@@ -1,10 +1,9 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:expense_task/main.dart';
 
 void main() {
-  group('ExpenseTask Navigation Flow', () {
+  group('PayTrack Navigation Flow', () {
     testWidgets('navigasi desktop berfungsi', (tester) async {
       tester.view.physicalSize = const Size(1200, 900);
       tester.view.devicePixelRatio = 1;
@@ -13,9 +12,9 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(const ExpenseTaskApp());
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(const Duration(seconds: 2));
 
-      expect(find.text('ExpenseTask'), findsOneWidget);
+      expect(find.text('PayTrack'), findsOneWidget);
       expect(find.text('MENU UTAMA'), findsOneWidget);
 
       const menus = [
@@ -28,9 +27,8 @@ void main() {
       for (final menu in menus) {
         final menuFinder = find.text(menu).first;
 
-        await tester.ensureVisible(menuFinder);
         await tester.tap(menuFinder);
-        await tester.pump(const Duration(milliseconds: 500));
+        await tester.pump(const Duration(milliseconds: 300));
 
         expect(find.text(menu), findsWidgets);
       }
@@ -44,17 +42,12 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(const ExpenseTaskApp());
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(const Duration(seconds: 2));
 
       final navigationBar = find.byType(NavigationBar);
       expect(navigationBar, findsOneWidget);
 
-      const menus = [
-        'Beranda',
-        'Tagihan',
-        'Riwayat',
-        'Tentang',
-      ];
+      const menus = ['Beranda', 'Tagihan', 'Riwayat', 'Tentang'];
 
       for (var index = 0; index < menus.length; index++) {
         final menuFinder = find.descendant(
@@ -65,9 +58,10 @@ void main() {
         expect(menuFinder, findsOneWidget);
 
         await tester.tap(menuFinder);
-        await tester.pump(const Duration(milliseconds: 500));
+        await tester.pump(const Duration(milliseconds: 300));
 
         final bar = tester.widget<NavigationBar>(navigationBar);
+
         expect(bar.selectedIndex, index);
       }
     });
